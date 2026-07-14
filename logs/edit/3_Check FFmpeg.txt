@@ -1,0 +1,6 @@
+﻿2026-07-14T11:52:04.8191135Z ##[group]Run ffmpeg -version
+2026-07-14T11:52:04.8191800Z [36;1mffmpeg -version[0m
+2026-07-14T11:52:04.8359397Z shell: /usr/bin/bash -e {0}
+2026-07-14T11:52:04.8359960Z ##[endgroup]
+2026-07-14T11:52:04.8434963Z /home/runner/work/_temp/641e9ba4-fd3f-4340-ba65-85bb66e300f6.sh: line 1: ffmpeg: command not found
+2026-07-14T11:52:04.8449622Z ##[error]Process completed with exit code 127.

@@ -14,9 +14,13 @@ jobs:
 
     - uses: actions/checkout@v4
 
+    - name: Install FFmpeg
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+
     - name: Check FFmpeg
-      run:
-        ffmpeg -version
+      run: ffmpeg -version
 
     - name: Edit video
       run: |

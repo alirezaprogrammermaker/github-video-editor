@@ -1,0 +1,73 @@
+﻿2026-07-14T11:52:03.8424955Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-14T11:52:03.8433932Z ##[group]Run actions/checkout@v4
+2026-07-14T11:52:03.8434696Z with:
+2026-07-14T11:52:03.8435263Z   repository: alirezaprogrammermaker/github-video-editor
+2026-07-14T11:52:03.8439590Z   token: ***
+2026-07-14T11:52:03.8440053Z   ssh-strict: true
+2026-07-14T11:52:03.8440499Z   ssh-user: git
+2026-07-14T11:52:03.8440974Z   persist-credentials: true
+2026-07-14T11:52:03.8441472Z   clean: true
+2026-07-14T11:52:03.8441920Z   sparse-checkout-cone-mode: true
+2026-07-14T11:52:03.8442454Z   fetch-depth: 1
+2026-07-14T11:52:03.8442891Z   fetch-tags: false
+2026-07-14T11:52:03.8443348Z   show-progress: true
+2026-07-14T11:52:03.8443813Z   lfs: false
+2026-07-14T11:52:03.8444233Z   submodules: false
+2026-07-14T11:52:03.8444727Z   set-safe-directory: true
+2026-07-14T11:52:03.8445479Z ##[endgroup]
+2026-07-14T11:52:03.9408768Z Syncing repository: alirezaprogrammermaker/github-video-editor
+2026-07-14T11:52:03.9410680Z ##[group]Getting Git version info
+2026-07-14T11:52:03.9411719Z Working directory is '/home/runner/work/github-video-editor/github-video-editor'
+2026-07-14T11:52:03.9412911Z [command]/usr/bin/git version
+2026-07-14T11:52:03.9489554Z git version 2.54.0
+2026-07-14T11:52:03.9517213Z ##[endgroup]
+2026-07-14T11:52:03.9523806Z Temporarily overriding HOME='/home/runner/work/_temp/7785a44e-d8a3-4edf-9da3-c46525e18d95' before making global git config changes
+2026-07-14T11:52:03.9525262Z Adding repository directory to the temporary git global config as a safe directory
+2026-07-14T11:52:03.9529474Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/github-video-editor/github-video-editor
+2026-07-14T11:52:03.9572449Z Deleting the contents of '/home/runner/work/github-video-editor/github-video-editor'
+2026-07-14T11:52:03.9576105Z ##[group]Initializing the repository
+2026-07-14T11:52:03.9581164Z [command]/usr/bin/git init /home/runner/work/github-video-editor/github-video-editor
+2026-07-14T11:52:03.9686100Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-07-14T11:52:03.9687817Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-07-14T11:52:03.9688817Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-07-14T11:52:03.9689568Z hint: call:
+2026-07-14T11:52:03.9690118Z hint:
+2026-07-14T11:52:03.9690645Z hint: 	git config --global init.defaultBranch <name>
+2026-07-14T11:52:03.9691567Z hint:
+2026-07-14T11:52:03.9692581Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-07-14T11:52:03.9694113Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-07-14T11:52:03.9695554Z hint:
+2026-07-14T11:52:03.9696372Z hint: 	git branch -m <name>
+2026-07-14T11:52:03.9697558Z hint:
+2026-07-14T11:52:03.9698783Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-07-14T11:52:03.9700999Z Initialized empty Git repository in /home/runner/work/github-video-editor/github-video-editor/.git/
+2026-07-14T11:52:03.9704545Z [command]/usr/bin/git remote add origin https://github.com/alirezaprogrammermaker/github-video-editor
+2026-07-14T11:52:03.9747279Z ##[endgroup]
+2026-07-14T11:52:03.9748654Z ##[group]Disabling automatic garbage collection
+2026-07-14T11:52:03.9751694Z [command]/usr/bin/git config --local gc.auto 0
+2026-07-14T11:52:03.9781304Z ##[endgroup]
+2026-07-14T11:52:03.9782643Z ##[group]Setting up auth
+2026-07-14T11:52:03.9788238Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-07-14T11:52:03.9820559Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-07-14T11:52:04.0160711Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-07-14T11:52:04.0189769Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-07-14T11:52:04.0400567Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-07-14T11:52:04.0430089Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-07-14T11:52:04.0642021Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-07-14T11:52:04.0673565Z ##[endgroup]
+2026-07-14T11:52:04.0674756Z ##[group]Fetching the repository
+2026-07-14T11:52:04.0682545Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +1600e3ea27b7d6b66e7ce854a993f58e07d1cada:refs/remotes/origin/main
+2026-07-14T11:52:04.7725128Z From https://github.com/alirezaprogrammermaker/github-video-editor
+2026-07-14T11:52:04.7726288Z  * [new ref]         1600e3ea27b7d6b66e7ce854a993f58e07d1cada -> origin/main
+2026-07-14T11:52:04.7760980Z ##[endgroup]
+2026-07-14T11:52:04.7761871Z ##[group]Determining the checkout info
+2026-07-14T11:52:04.7763442Z ##[endgroup]
+2026-07-14T11:52:04.7769059Z [command]/usr/bin/git sparse-checkout disable
+2026-07-14T11:52:04.7811645Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-07-14T11:52:04.7836602Z ##[group]Checking out the ref
+2026-07-14T11:52:04.7840554Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-07-14T11:52:04.7919769Z Switched to a new branch 'main'
+2026-07-14T11:52:04.7922519Z branch 'main' set up to track 'origin/main'.
+2026-07-14T11:52:04.7929112Z ##[endgroup]
+2026-07-14T11:52:04.7965638Z [command]/usr/bin/git log -1 --format=%H
+2026-07-14T11:52:04.7987634Z 1600e3ea27b7d6b66e7ce854a993f58e07d1cada
