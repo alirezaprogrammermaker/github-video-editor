@@ -8,10 +8,16 @@ def run_ffmpeg(input_file, output_file="output.mp4", text="Hello World"):
         print(f"Error: File '{input_file}' not found.")
         sys.exit(1)
 
+    font_path = "C:/Windows/Fonts/arial.ttf"
+
+    escaped_text = text.replace("'", "\\'").replace(":", "\\:")
+    escaped_font = font_path.replace(":", "\\:")
+
     cmd = [
         "ffmpeg", "-y",
         "-i", input_file,
-        "-vf", f"drawtext=text='{text}':fontsize=50:fontcolor=white:x=20:y=20",
+        "-vf",
+        f"drawtext=fontfile='{escaped_font}':text='{escaped_text}':fontsize=50:fontcolor=white:x=20:y=20",
         output_file
     ]
 
