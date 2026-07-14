@@ -1,0 +1,26 @@
+name: Video Edit
+
+on:
+  workflow_dispatch:
+    inputs:
+      video:
+        required: true
+
+jobs:
+  edit:
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - uses: actions/checkout@v4
+
+    - name: Check FFmpeg
+      run:
+        ffmpeg -version
+
+    - name: Edit video
+      run: |
+        ffmpeg \
+        -i ${{ inputs.video }} \
+        -vf "drawtext=text='سلام دنیا':fontsize=50:fontcolor=white:x=20:y=20" \
+        output.mp4
