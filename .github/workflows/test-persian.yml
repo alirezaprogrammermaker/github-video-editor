@@ -1,0 +1,86 @@
+name: Test Persian Font
+
+# Diagnostic workflow that proves the "??? instead of Persian" bug and its fix.
+# Runs TWO jobs in parallel:
+#   1. WITHOUT PYTHONUTF8=1  → should FAIL (Persian becomes "?" under POSIX locale)
+#   2. WITH    PYTHONUTF8=1  → should PASS (Persian arrives intact, UTF-8)
+# This lets us confirm the fix works before touching the real video-edit.yml.
+
+on:
+  workflow_dispatch:
+    inputs:
+      persian_text:
+        description: "Persian text to render"
+        required: false
+        default: "۱۲ فرزند"
+
+jobs:
+  # ── Job 1: NO FIX (control) — expected to FAIL ────────────────────
+  no-fix:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install Pillow arabic-reshaper python-bidi
+
+      - name: Show locale (proves POSIX/C default)
+        run: |
+          echo "LANG=$LANG"
+          echo "LC_ALL=$LC_ALL"
+          python -c "import sys; print('filesystem encoding:', sys.getfilesystemencoding())"
+
+      - name: Run Persian test WITHOUT PYTHONUTF8 (expected FAIL)
+        env:
+          # Force POSIX locale — the GitHub runner default for non-ASCII.
+          LANG: C
+          LC_ALL: C
+        run: python test_persian.py "${{ github.event.inputs.persian_text }}"
+
+      - name: Upload result (for visual inspection)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: result-no-fix
+          path: test_persian_output.png
+          if-no-files-found: ignore
+
+  # ── Job 2: WITH FIX — expected to PASS ────────────────────────────
+  with-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install Pillow arabic-reshaper python-bidi
+
+      - name: Show locale
+        run: |
+          echo "LANG=$LANG"
+          echo "LC_ALL=$LC_ALL"
+          python -c "import sys; print('filesystem encoding:', sys.getfilesystemencoding())"
+
+      - name: Run Persian test WITH PYTHONUTF8=1 (expected PASS)
+        env:
+          PYTHONUTF8: "1"
+          PYTHONIOENCODING: "utf-8"
+        run: python test_persian.py "${{ github.event.inputs.persian_text }}"
+
+      - name: Upload result (for visual inspection)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: result-with-fix
+          path: test_persian_output.png
+          if-no-files-found: ignore
