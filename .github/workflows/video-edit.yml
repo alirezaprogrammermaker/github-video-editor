@@ -65,19 +65,24 @@ jobs:
 
     - name: Verify Persian text arrives intact (guard against mojibake)
       run: |
-        python - <<'EOF'
-        import sys
-        for name in ("STATIC_TEXT", "MARQUEE_TEXT", "WATERMARK_TEXT"):
-            val = __import__("os").environ.get(name, "")
-            ok = any("\u0600" <= c <= "\u06FF" or "\u06F0" <= c <= "\u06F9"
-                     for c in val) if val else True
-            print(f"{name}: {val!r} has_persian={ok}")
-            # If Persian was expected but arrived as '?' the dispatch encoding broke.
-            if val and any(c in val for c in ("?", "\ufffd")):
-                print(f"ERROR: {name} is corrupted (contains '?'). "
-                      "The workflow_dispatch request was not UTF-8 encoded.", file=sys.stderr)
+        python - "$GITHUB_EVENT_PATH" <<'PYEOF'
+        import json, sys
+        event_path = sys.argv[1]
+        with open(event_path, encoding="utf-8") as f:
+            ev = json.load(f)
+        inputs = ev.get("inputs", {})
+        for name, val in inputs.items():
+            if not val:
+                continue
+            has_persian = any("\u0600" <= c <= "\u06FF" or "\u06F0" <= c <= "\u06F9"
+                              for c in val)
+            print(f"{name}: {val!r}  has_persian={has_persian}")
+            if any(c in val for c in ("?", "\ufffd")):
+                print(f"ERROR: {name} is corrupted. "
+                      "The workflow_dispatch request was not UTF-8 encoded.",
+                      file=sys.stderr)
                 sys.exit(1)
-        EOF
+        PYEOF
 
     - name: Edit video
       env:
