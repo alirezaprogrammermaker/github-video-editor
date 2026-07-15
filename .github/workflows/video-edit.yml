@@ -44,8 +44,18 @@ jobs:
         mkdir -p fonts
         cd fonts
         curl -L -o Vazirmatn.zip "https://github.com/rastikerdar/vazirmatn/releases/download/v33.003/Vazirmatn-fonts-ttf-fonts-ttf-v33.003.zip"
-        unzip -j Vazirmatn.zip "fonts/ttf/Vazirmatn/Vazirmatn-Bold.ttf" -d .
-        rm Vazirmatn.zip
+        python3 -c "
+        import zipfile
+        import os
+        with zipfile.ZipFile('Vazirmatn.zip', 'r') as z:
+            for name in z.namelist():
+                if name.endswith('Vazirmatn-Bold.ttf') and 'Static' not in name:
+                    print(f'Extracting: {name}')
+                    with z.open(name) as src, open('Vazirmatn-Bold.ttf', 'wb') as dst:
+                        dst.write(src.read())
+                    break
+        "
+        rm -f Vazirmatn.zip
         ls -la
 
     - name: Edit video
