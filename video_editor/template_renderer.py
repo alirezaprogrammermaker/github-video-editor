@@ -261,11 +261,11 @@ class TemplateRenderer:
         else:
             last = "[0:v]"
 
-        # Marquee text (marquee_start → end)
+        # Marquee text (marquee_start → end) — RTL: enters right, exits left
         if marquee_imgs:
             img = marquee_imgs[0]
             x_expr = (
-                f"-{img.width}+{speed}*({img.width}+w)"
+                f"w-{speed}*({img.width}+w)"
                 f"*(t-{marquee_start})/({marquee_duration})"
             )
             parts.append(
