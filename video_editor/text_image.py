@@ -60,6 +60,12 @@ class TextImageGenerator:
         win = Path("C:/Windows/Fonts/tahoma.ttf")
         if win.exists():
             return win
+        # Try to download font if not found
+        from .font import FontManager
+        mgr = FontManager()
+        downloaded = mgr._ensure_bundled_font()
+        if downloaded:
+            return downloaded
         raise FileNotFoundError("No font found.")
 
     _NAMED_COLORS = {
