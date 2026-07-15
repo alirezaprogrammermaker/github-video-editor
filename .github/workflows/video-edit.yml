@@ -76,7 +76,7 @@ jobs:
             ev = json.load(f)
         inputs = ev.get("inputs", {})
         for name, val in inputs.items():
-            if not val:
+            if not val or name == "video_url":
                 continue
             has_persian = any("\u0600" <= c <= "\u06FF" or "\u06F0" <= c <= "\u06F9"
                               for c in val)
