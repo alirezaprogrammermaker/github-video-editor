@@ -39,12 +39,19 @@ jobs:
         python -m pip install --upgrade pip
         pip install Pillow arabic-reshaper python-bidi requests
 
-    - name: Download Vazirmatn font
+    - name: Set up fonts
       run: |
         mkdir -p fonts
-        wget -q -O fonts/Vazirmatn.zip "https://github.com/rastikerdar/vazirmatn/releases/download/v33.003/Vazirmatn-fonts-ttf-fonts-ttf-v33.003.zip"
-        unzip -jo fonts/Vazirmatn.zip "fonts/ttf/Vazirmatn/Vazirmatn-Bold.ttf" -d fonts/
-        rm -f fonts/Vazirmatn.zip
+        if [ -f "fonts/Vazirmatn-Bold.ttf" ]; then
+          echo "Using bundled Vazirmatn font"
+          ls -la fonts/
+        else
+          echo "Downloading Vazirmatn font..."
+          wget -q -O vazirmatn.zip "https://github.com/rastikerdar/vazirmatn/releases/download/v33.003/vazirmatn-v33.003.zip"
+          unzip -jo vazirmatn.zip "fonts/ttf/Vazirmatn-Bold.ttf" -d fonts/
+          rm -f vazirmatn.zip
+          echo "Downloaded Vazirmatn-Bold.ttf"
+        fi
         ls -la fonts/
         file fonts/Vazirmatn-Bold.ttf
 
