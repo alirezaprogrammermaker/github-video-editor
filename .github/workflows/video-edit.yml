@@ -3,6 +3,10 @@ name: Video Edit
 on:
   workflow_dispatch:
     inputs:
+      video_url:
+        description: "URL of video to edit (leave empty to use bundled video.mp4)"
+        required: false
+        default: ""
       static_text:
         description: "Static text for first phase (0-2s)"
         required: false
@@ -84,13 +88,27 @@ jobs:
                 sys.exit(1)
         PYEOF
 
+    - name: Download video from URL
+      if: github.event.inputs.video_url != ''
+      env:
+        VIDEO_URL: ${{ github.event.inputs.video_url }}
+      run: |
+        echo "Downloading video from: $VIDEO_URL"
+        curl -L -o input_video.mp4 "$VIDEO_URL"
+        echo "Downloaded video size: $(du -h input_video.mp4 | cut -f1)"
+
     - name: Edit video
       env:
+        VIDEO_URL: ${{ github.event.inputs.video_url }}
         STATIC_TEXT: ${{ github.event.inputs.static_text }}
         MARQUEE_TEXT: ${{ github.event.inputs.marquee_text }}
         WATERMARK_TEXT: ${{ github.event.inputs.watermark_text }}
       run: |
-        python main.py video.mp4 output.mp4 \
+        INPUT_VIDEO="video.mp4"
+        if [ -n "$VIDEO_URL" ]; then
+          INPUT_VIDEO="input_video.mp4"
+        fi
+        python main.py "$INPUT_VIDEO" output.mp4 \
           --template default \
           --static-text "$STATIC_TEXT" \
           --marquee-text "$MARQUEE_TEXT" \

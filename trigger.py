@@ -59,7 +59,7 @@ def _build_inputs(video_url, static_text, marquee_text, watermark_text):
     """Assemble workflow inputs, dropping empties so defaults are preserved."""
     inputs = {}
     if video_url:
-        inputs["video"] = video_url
+        inputs["video_url"] = video_url
     if static_text:
         inputs["static_text"] = static_text
     if marquee_text:
