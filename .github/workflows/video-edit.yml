@@ -19,6 +19,14 @@ on:
         description: "Watermark text"
         required: false
         default: "@insta_shop"
+      output_format:
+        description: "Output format: mp4 (direct download) or zip (artifact)"
+        required: false
+        default: "mp4"
+        type: choice
+        options:
+          - mp4
+          - zip
 
 env:
   # Force UTF-8 everywhere. Persian/Arabic text otherwise gets corrupted to
@@ -114,7 +122,19 @@ jobs:
           --marquee-text "$MARQUEE_TEXT" \
           --watermark-text "$WATERMARK_TEXT"
 
-    - name: Upload output
+    - name: Upload as Release (mp4)
+      if: github.event.inputs.output_format != 'zip'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: latest-output
+        name: Latest Video Output
+        files: outputs/output.mp4
+        overwrite: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload as Artifact (zip)
+      if: github.event.inputs.output_format == 'zip'
       uses: actions/upload-artifact@v4
       with:
         name: edited-video
