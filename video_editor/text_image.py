@@ -3,9 +3,9 @@
 This avoids FFmpeg's broken bidirectional text rendering by pre-rendering
 the text as a bitmap with proper shaping, then overlaying the image.
 
-Uses arabic-reshaper for correct RTL shaping. Renders character-by-character
-to avoid Pillow's bidi reordering (which reverses already-shaped presentation
-forms when libraqm is not installed).
+Uses arabic-reshaper for correct RTL shaping. For pure RTL text, the
+shaped string is reversed before draw.text() so that Pillow's built-in
+bidi algorithm reverses it back to the correct visual order.
 """
 import os
 from dataclasses import dataclass
@@ -28,7 +28,6 @@ class TextImage:
 
 
 def _is_rtl_char(ch: str) -> bool:
-    """Check if a character is RTL (Arabic/Persian/Hebrew script)."""
     cp = ord(ch)
     return (
         0x0600 <= cp <= 0x06FF
@@ -42,42 +41,6 @@ def _is_rtl_char(ch: str) -> bool:
 def _shape_text(text: str) -> str:
     """Reshape Arabic/Persian text into presentation forms."""
     return arabic_reshaper.reshape(text)
-
-
-def _measure_chars(text: str, font: ImageFont.FreeTypeFont) -> List[int]:
-    """Measure the width of each character."""
-    widths = []
-    for ch in text:
-        bbox = font.getbbox(ch)
-        widths.append(bbox[2] - bbox[0])
-    return widths
-
-
-def _render_text_image(
-    draw: ImageDraw.ImageDraw,
-    text: str,
-    font: ImageFont.FreeTypeFont,
-    x: int,
-    y: int,
-    fill: Tuple[int, int, int, int],
-    rtl: bool = True,
-) -> None:
-    """Render text character by character.
-
-    For RTL: x is the RIGHT edge, characters are placed leftward.
-    For LTR: x is the LEFT edge, characters are placed rightward.
-    """
-    widths = _measure_chars(text, font)
-    if rtl:
-        cursor = x
-        for ch, w in zip(text, widths):
-            cursor -= w
-            draw.text((cursor, y), ch, font=font, fill=fill)
-    else:
-        cursor = x
-        for ch, w in zip(text, widths):
-            draw.text((cursor, y), ch, font=font, fill=fill)
-            cursor += w
 
 
 class TextImageGenerator:
@@ -161,73 +124,57 @@ class TextImageGenerator:
 
         shaped = _shape_text(text)
 
-        # Determine if text is primarily RTL
+        # For pure RTL text, reverse before draw.text() so Pillow's bidi
+        # algorithm reverses it back to the correct visual order.
         has_rtl = any(_is_rtl_char(ch) for ch in shaped)
         has_ltr = any(not _is_rtl_char(ch) and ch.strip() for ch in shaped)
-        is_rtl = has_rtl and not has_ltr  # Pure RTL
+        if has_rtl and not has_ltr:
+            display_text = shaped[::-1]
+        else:
+            display_text = shaped
 
-        # Measure total width
-        widths = _measure_chars(shaped, self._font)
-        total_w = sum(widths)
-        max_h = 0
-        for ch in shaped:
-            bbox = self._font.getbbox(ch)
-            h = bbox[3] - bbox[1]
-            if h > max_h:
-                max_h = h
-
-        # Baseline offset
-        full_bbox = self._font.getbbox(shaped)
-        y_offset = -full_bbox[1]
+        bbox = self._font.getbbox(display_text)
+        text_w = bbox[2] - bbox[0]
+        text_h = bbox[3] - bbox[1]
 
         padding = self._bg_padding + self._border_width + self._shadow_offset
-        img_w = total_w + 2 * padding
-        img_h = max_h + 2 * padding
+        total_w = text_w + 2 * padding
+        total_h = text_h + 2 * padding
 
         # Ensure even dimensions for libx264 compatibility
-        img_w = img_w + (img_w % 2)
-        img_h = img_h + (img_h % 2)
+        total_w = total_w + (total_w % 2)
+        total_h = total_h + (total_h % 2)
 
-        img = Image.new("RGBA", (img_w, img_h), (0, 0, 0, 0))
+        img = Image.new("RGBA", (total_w, total_h), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
 
         # Background box
         if self._bg_color:
             draw.rounded_rectangle(
-                [0, 0, img_w - 1, img_h - 1],
+                [0, 0, total_w - 1, total_h - 1],
                 radius=8,
                 fill=self._bg_color,
             )
 
-        text_y = padding + y_offset
-
-        if is_rtl:
-            # RTL: right-aligned, draw from right edge leftward
-            text_x = img_w - padding
-        else:
-            # LTR or mixed: left-aligned, draw from left edge rightward
-            text_x = padding
-
         # Shadow
         if self._shadow_offset:
-            _render_text_image(
-                draw, shaped, self._font,
-                text_x + self._shadow_offset,
-                text_y + self._shadow_offset,
-                self._shadow_color,
-                rtl=is_rtl,
-            )
+            shadow_x = padding - bbox[0] + self._shadow_offset
+            shadow_y = padding - bbox[1] + self._shadow_offset
+            draw.text((shadow_x, shadow_y), display_text, font=self._font,
+                      fill=self._shadow_color)
 
         # Main text
-        _render_text_image(draw, shaped, self._font, text_x, text_y,
-                           self._font_color, rtl=is_rtl)
+        text_x = padding - bbox[0]
+        text_y = padding - bbox[1]
+        draw.text((text_x, text_y), display_text, font=self._font,
+                  fill=self._font_color)
 
         img.save(str(output_path), "PNG")
 
         return TextImage(
             path=str(output_path),
-            width=img_w,
-            height=img_h,
+            width=total_w,
+            height=total_h,
         )
 
     def render_lines(self, lines: List[str], output_dir: str | Path) -> List[TextImage]:
