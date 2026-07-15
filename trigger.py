@@ -55,7 +55,7 @@ def trigger_workflow(repo, workflow, token, inputs, branch="main"):
         sys.exit(1)
 
 
-def _build_inputs(video_url, static_text, marquee_text, watermark_text):
+def _build_inputs(video_url, static_text, marquee_text, watermark_text, output_format="mp4"):
     """Assemble workflow inputs, dropping empties so defaults are preserved."""
     inputs = {}
     if video_url:
@@ -66,6 +66,8 @@ def _build_inputs(video_url, static_text, marquee_text, watermark_text):
         inputs["marquee_text"] = marquee_text
     if watermark_text:
         inputs["watermark_text"] = watermark_text
+    if output_format and output_format != "mp4":
+        inputs["output_format"] = output_format
     return inputs
 
 
@@ -91,6 +93,8 @@ if __name__ == "__main__":
     p.add_argument("--static-text", default=None, help="static text (0-2s)")
     p.add_argument("--marquee-text", default=None, help="marquee text (2s-end)")
     p.add_argument("--watermark-text", default=None, help="watermark text")
+    p.add_argument("--output-format", default="mp4", choices=["mp4", "zip"],
+                    help="output format: mp4 (direct) or zip (artifact)")
 
     # Backward-compat: positional video_url as 4th arg still works.
     if len(sys.argv) >= 4 and not sys.argv[3].startswith("-") and sys.argv[3] != os.environ.get("GITHUB_TOKEN", ""):
@@ -107,5 +111,6 @@ if __name__ == "__main__":
         sys.exit(1)
 
     inputs = _build_inputs(args.video_url, args.static_text,
-                           args.marquee_text, args.watermark_text)
+                           args.marquee_text, args.watermark_text,
+                           args.output_format)
     trigger_workflow(args.repo, args.workflow, args.token, inputs, args.branch)
