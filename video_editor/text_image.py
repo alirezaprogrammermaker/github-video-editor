@@ -3,9 +3,8 @@
 This avoids FFmpeg's broken bidirectional text rendering by pre-rendering
 the text as a bitmap with proper shaping, then overlaying the image.
 
-Uses arabic-reshaper for correct RTL shaping. For pure RTL text, the
-shaped string is reversed before draw.text() so that Pillow's built-in
-bidi algorithm reverses it back to the correct visual order.
+Uses arabic-reshaper for correct RTL shaping and python-bidi for
+bidirectional text ordering.
 """
 import os
 from dataclasses import dataclass
@@ -14,6 +13,7 @@ from typing import List, Tuple
 
 from PIL import Image, ImageDraw, ImageFont
 import arabic_reshaper
+from bidi.algorithm import get_display
 
 _BUNDLED_DIR = Path(__file__).resolve().parent.parent / "fonts"
 _DEFAULT_FONT = _BUNDLED_DIR / "Vazirmatn-Bold.ttf"
@@ -123,15 +123,7 @@ class TextImageGenerator:
         output_path = Path(output_path)
 
         shaped = _shape_text(text)
-
-        # For pure RTL text, reverse before draw.text() so Pillow's bidi
-        # algorithm reverses it back to the correct visual order.
-        has_rtl = any(_is_rtl_char(ch) for ch in shaped)
-        has_ltr = any(not _is_rtl_char(ch) and ch.strip() for ch in shaped)
-        if has_rtl and not has_ltr:
-            display_text = shaped[::-1]
-        else:
-            display_text = shaped
+        display_text = get_display(shaped)
 
         bbox = self._font.getbbox(display_text)
         text_w = bbox[2] - bbox[0]
