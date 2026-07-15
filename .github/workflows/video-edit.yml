@@ -39,6 +39,15 @@ jobs:
         python -m pip install --upgrade pip
         pip install Pillow arabic-reshaper python-bidi requests
 
+    - name: Download Vazirmatn font
+      run: |
+        mkdir -p fonts
+        cd fonts
+        curl -L -o Vazirmatn.zip "https://github.com/rastikerdar/vazirmatn/releases/download/v33.003/Vazirmatn-fonts-ttf-fonts-ttf-v33.003.zip"
+        unzip -j Vazirmatn.zip "fonts/ttf/Vazirmatn/Vazirmatn-Bold.ttf" -d .
+        rm Vazirmatn.zip
+        ls -la
+
     - name: Edit video
       run: |
         python main.py video.mp4 output.mp4 \
