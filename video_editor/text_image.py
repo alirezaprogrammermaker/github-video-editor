@@ -62,7 +62,16 @@ class TextImageGenerator:
         self._bg_padding = bg_padding
 
         resolved = self._resolve_font(font_path)
-        self._font = ImageFont.truetype(str(resolved), font_size)
+        # Use LAYOUT_BASIC to disable HarfBuzz/RAQM bidi processing.
+        # We handle bidi ourselves via python-bidi's get_display(),
+        # so Pillow must NOT re-apply it (double processing = reversed text).
+        try:
+            self._font = ImageFont.truetype(
+                str(resolved), font_size,
+                layout_engine=ImageFont.LAYOUT_BASIC,
+            )
+        except (TypeError, AttributeError):
+            self._font = ImageFont.truetype(str(resolved), font_size)
         self._bold_font = self._font
 
         self._font_color = self._parse_color(font_color)
