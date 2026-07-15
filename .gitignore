@@ -2,10 +2,13 @@
 __pycache__/
 *.pyc
 .idea/
-output.mp4
-output_local.mp4
-output.zip
 .env
 logs/
 logs2/
 *.zip
+
+# Generated outputs
+outputs/
+temps/
+*.mp4
+!video.mp4

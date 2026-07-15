@@ -2,13 +2,25 @@ name: Video Edit
 
 on:
   workflow_dispatch:
+    inputs:
+      static_text:
+        description: "Static text for first phase (0-2s)"
+        required: false
+        default: "12 فرزند"
+      marquee_text:
+        description: "Marquee text (2s-end)"
+        required: false
+        default: "برای خرید فالوور لایک ویدیو اینستاگرام به آیدی @insta_shop پیام بدید"
+      watermark_text:
+        description: "Watermark text"
+        required: false
+        default: "@insta_shop"
 
 jobs:
   edit:
     runs-on: ubuntu-latest
 
     steps:
-
     - uses: actions/checkout@v4
 
     - name: Install FFmpeg
@@ -16,18 +28,28 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y ffmpeg
 
-    - name: Check FFmpeg
-      run: ffmpeg -version
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        cache: "pip"
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install Pillow arabic-reshaper python-bidi requests
 
     - name: Edit video
       run: |
-        ffmpeg -y \
-        -i video.mp4 \
-        -vf "drawtext=text='Hello World':fontsize=50:fontcolor=white:x=20:y=20" \
-        output.mp4
+        python main.py video.mp4 output.mp4 \
+          --template default \
+          --static-text "${{ github.event.inputs.static_text }}" \
+          --marquee-text "${{ github.event.inputs.marquee_text }}" \
+          --watermark-text "${{ github.event.inputs.watermark_text }}"
 
     - name: Upload output
       uses: actions/upload-artifact@v4
       with:
         name: edited-video
-        path: output.mp4
+        path: outputs/output.mp4
+        retention-days: 7
