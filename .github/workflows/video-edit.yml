@@ -16,6 +16,14 @@ on:
         required: false
         default: "@insta_shop"
 
+env:
+  # Force UTF-8 everywhere. Persian/Arabic text otherwise gets corrupted to
+  # "?" by ASCII decoding under a POSIX locale, producing "????" in the video.
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: "utf-8"
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+
 jobs:
   edit:
     runs-on: ubuntu-latest
@@ -55,13 +63,33 @@ jobs:
         ls -la fonts/
         file fonts/Vazirmatn-Bold.ttf
 
+    - name: Verify Persian text arrives intact (guard against mojibake)
+      run: |
+        python - <<'EOF'
+        import sys
+        for name in ("STATIC_TEXT", "MARQUEE_TEXT", "WATERMARK_TEXT"):
+            val = __import__("os").environ.get(name, "")
+            ok = any("\u0600" <= c <= "\u06FF" or "\u06F0" <= c <= "\u06F9"
+                     for c in val) if val else True
+            print(f"{name}: {val!r} has_persian={ok}")
+            # If Persian was expected but arrived as '?' the dispatch encoding broke.
+            if val and any(c in val for c in ("?", "\ufffd")):
+                print(f"ERROR: {name} is corrupted (contains '?'). "
+                      "The workflow_dispatch request was not UTF-8 encoded.", file=sys.stderr)
+                sys.exit(1)
+        EOF
+
     - name: Edit video
+      env:
+        STATIC_TEXT: ${{ github.event.inputs.static_text }}
+        MARQUEE_TEXT: ${{ github.event.inputs.marquee_text }}
+        WATERMARK_TEXT: ${{ github.event.inputs.watermark_text }}
       run: |
         python main.py video.mp4 output.mp4 \
           --template default \
-          --static-text "${{ github.event.inputs.static_text }}" \
-          --marquee-text "${{ github.event.inputs.marquee_text }}" \
-          --watermark-text "${{ github.event.inputs.watermark_text }}"
+          --static-text "$STATIC_TEXT" \
+          --marquee-text "$MARQUEE_TEXT" \
+          --watermark-text "$WATERMARK_TEXT"
 
     - name: Upload output
       uses: actions/upload-artifact@v4
