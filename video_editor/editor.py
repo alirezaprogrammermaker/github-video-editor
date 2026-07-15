@@ -130,9 +130,9 @@ class VideoEditor:
 
         for i, (img, y_pos) in enumerate(zip(images, y_positions)):
             if is_marquee:
-                # RTL marquee: text enters from right, exits left
+                # LTR marquee: text enters from left, exits right
                 x_expr = (
-                    f"w-{speed}*({img.width}+w)*(t-2)/({duration}-2)"
+                    f"-{img.width}+({img.width}+w)*(t-2)/({duration}-2)"
                 )
                 overlay = f"overlay={x_expr}:{y_pos}:enable='gte(t,2)'"
             else:
