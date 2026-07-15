@@ -1,10 +1,7 @@
 name: Test Persian Font
 
-# Diagnostic workflow that proves the "??? instead of Persian" bug and its fix.
-# Runs TWO jobs in parallel:
-#   1. WITHOUT PYTHONUTF8=1  → should FAIL (Persian becomes "?" under POSIX locale)
-#   2. WITH    PYTHONUTF8=1  → should PASS (Persian arrives intact, UTF-8)
-# This lets us confirm the fix works before touching the real video-edit.yml.
+# Isolates WHERE Persian text gets corrupted: input expression → shell → Python.
+# Tests multiple transport methods to find a reliable one.
 
 on:
   workflow_dispatch:
@@ -14,45 +11,15 @@ on:
         required: false
         default: "۱۲ فرزند"
 
+env:
+  # Apply UTF-8 globally to the whole workflow as a baseline.
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: "utf-8"
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+
 jobs:
-  # ── Job 1: NO FIX (control) — expected to FAIL ────────────────────
-  no-fix:
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: pip install Pillow arabic-reshaper python-bidi
-
-      - name: Show locale (proves POSIX/C default)
-        run: |
-          echo "LANG=$LANG"
-          echo "LC_ALL=$LC_ALL"
-          python -c "import sys; print('filesystem encoding:', sys.getfilesystemencoding())"
-
-      - name: Run Persian test WITHOUT PYTHONUTF8 (expected FAIL)
-        env:
-          # Force POSIX locale — the GitHub runner default for non-ASCII.
-          LANG: C
-          LC_ALL: C
-        run: python test_persian.py "${{ github.event.inputs.persian_text }}"
-
-      - name: Upload result (for visual inspection)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: result-no-fix
-          path: test_persian_output.png
-          if-no-files-found: ignore
-
-  # ── Job 2: WITH FIX — expected to PASS ────────────────────────────
-  with-fix:
+  diagnose:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -65,22 +32,51 @@ jobs:
       - name: Install dependencies
         run: pip install Pillow arabic-reshaper python-bidi
 
-      - name: Show locale
+      - name: Inspect raw workflow input (shell level)
         run: |
-          echo "LANG=$LANG"
-          echo "LC_ALL=$LC_ALL"
-          python -c "import sys; print('filesystem encoding:', sys.getfilesystemencoding())"
+          echo "=== 1. Raw input via \$GITHUB_EVENT_PATH ==="
+          # The workflow_dispatch event JSON contains the TRUE bytes the API received.
+          python -c "
+          import json
+          with open('$GITHUB_EVENT_PATH', encoding='utf-8') as f:
+              ev = json.load(f)
+              raw = ev.get('inputs', {}).get('persian_text', '')
+              print('event input repr:', repr(raw))
+              print('event input utf8 hex:', raw.encode('utf-8').hex())
+              ok = any('\u0600' <= c <= '\u06FF' for c in raw)
+              print('event input has Persian:', ok)
+          "
 
-      - name: Run Persian test WITH PYTHONUTF8=1 (expected PASS)
+      - name: Test A — inline expression into shell echo
+        run: |
+          echo "=== 2. Inline expression echo ==="
+          T="${{ github.event.inputs.persian_text }}"
+          echo "shell var repr (hexdump):"
+          printf '%s' "$T" | xxd | head -3
+
+      - name: Test B — pass input as env var to Python
         env:
-          PYTHONUTF8: "1"
-          PYTHONIOENCODING: "utf-8"
-        run: python test_persian.py "${{ github.event.inputs.persian_text }}"
+          PERSIAN_TEXT: ${{ github.event.inputs.persian_text }}
+        run: |
+          echo "=== 3. Via env var ==="
+          python -c "
+          import os, sys
+          t = os.environ['PERSIAN_TEXT']
+          print('env var repr:', repr(t))
+          print('env var utf8 hex:', t.encode('utf-8').hex())
+          print('has Persian:', any('\u0600' <= c <= '\u06FF' for c in t))
+          sys.exit(0 if any('\u0600' <= c <= '\u06FF' for c in t) else 1)
+          "
 
-      - name: Upload result (for visual inspection)
+      - name: Test C — pass input as argv to Python
+        run: |
+          echo "=== 4. Via argv ==="
+          python test_persian.py "${{ github.event.inputs.persian_text }}"
+
+      - name: Upload result
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: result-with-fix
+          name: persian-result
           path: test_persian_output.png
           if-no-files-found: ignore
