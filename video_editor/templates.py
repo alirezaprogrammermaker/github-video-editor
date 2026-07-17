@@ -163,8 +163,40 @@ class StaticOnlyTemplate(VideoTemplate):
     watermark = None
 
 
+class PersianShopTemplate(VideoTemplate):
+    """Persian shop template: static text top (0-2s) + marquee LTR (2s-end) + watermark top-right no bg."""
+    name = "persian-shop"
+    description = "Static text top 0-2s, marquee LTR 2s-end, watermark top-right no background"
+
+    static_text = StaticTextConfig(
+        position="top-center",
+        style=TextStyle(
+            font_size=65, font_color="white",
+            background=True, background_color="black@0.9",
+            background_padding=15,
+        ),
+    )
+    marquee = MarqueeConfig(
+        speed=1.0,
+        style=TextStyle(
+            font_size=50, font_color="white",
+            background=False,
+        ),
+    )
+    watermark = WatermarkElementConfig(
+        config=WatermarkConfig(
+            text="",
+            position="top-right",
+            opacity=0.8,
+            scale=0.20,
+            margin=15,
+        ),
+    )
+
+
 TEMPLATES = {
     "default": DefaultTemplate,
+    "persian-shop": PersianShopTemplate,
     "marquee-only": MarqueeOnlyTemplate,
     "static-only": StaticOnlyTemplate,
 }

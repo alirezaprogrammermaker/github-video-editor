@@ -1,0 +1,19 @@
+{
+  "name": "github-video-trigger",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker to trigger GitHub Actions video editing workflow",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["cloudflare", "worker", "github-actions", "video-editor"],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@octokit/rest": "^22.0.1",
+    "wrangler": "^4.111.0"
+  }
+}
