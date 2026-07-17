@@ -10,11 +10,11 @@ on:
       static_text:
         description: "Static text for first phase (0-2s)"
         required: false
-        default: "یک پدر و دوازده فرزند"
+        default: "12 فرزند"
       marquee_text:
         description: "Marquee text (2s-end)"
         required: false
-        default: "برای خرید فالوور اینستاگرام به آیا ig_shop پیام بدید"
+        default: "برای خرید فالوور لایک ویدیو اینستاگرام به آیدی @insta_shop پیام بدید"
       watermark_text:
         description: "Watermark text"
         required: false
@@ -119,7 +119,7 @@ jobs:
           INPUT_VIDEO="input_video.mp4"
         fi
         python main.py "$INPUT_VIDEO" output.mp4 \
-          --template persian-shop \
+          --template default \
           --static-text "$STATIC_TEXT" \
           --marquee-text "$MARQUEE_TEXT" \
           --watermark-text "$WATERMARK_TEXT"
