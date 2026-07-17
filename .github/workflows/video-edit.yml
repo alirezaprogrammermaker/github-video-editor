@@ -10,11 +10,11 @@ on:
       static_text:
         description: "Static text for first phase (0-2s)"
         required: false
-        default: "12 فرزند"
+        default: "پدر و دوازده فرزند"
       marquee_text:
         description: "Marquee text (2s-end)"
         required: false
-        default: "برای خرید فالوور لایک ویدیو اینستاگرام به آیدی @insta_shop پیام بدید"
+        default: "برای خرید فالوور لایک ویو به @insta_shop پیام بدید"
       watermark_text:
         description: "Watermark text"
         required: false

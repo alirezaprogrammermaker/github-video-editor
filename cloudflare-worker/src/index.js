@@ -94,8 +94,8 @@ export default {
 
         const {
           video_url,
-          static_text = "12 فرزند",
-          marquee_text = "برای خرید فالوور لایک ویدیو اینستاگرام به آیدی @insta_shop پیام بدید",
+          static_text = "پدر و دوازده فرزند",
+          marquee_text = "برای خرید فالوور لایک ویو به @insta_shop پیام بدید",
           watermark_text = "@insta_shop",
           output_format = "mp4",
         } = body;
