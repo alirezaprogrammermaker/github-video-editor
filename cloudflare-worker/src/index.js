@@ -2,7 +2,7 @@ import { Octokit } from "@octokit/rest";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
 
@@ -30,34 +30,36 @@ export default {
     const octokit = new Octokit({ auth: env.GITHUB_TOKEN });
     const [owner, repo] = env.GITHUB_REPO.split("/");
 
-    // GET /api/status
-    if (request.method === "GET" && path === "/api/status") {
+    // GET /api/releases — list all video releases
+    if (request.method === "GET" && path === "/api/releases") {
       try {
-        const { data } = await octokit.rest.actions.listWorkflowRuns({
+        const { data } = await octokit.rest.repos.listReleases({
           owner,
           repo,
-          workflow_id: env.GITHUB_WORKFLOW,
-          per_page: 5,
+          per_page: 30,
         });
 
-        const runs = data.workflow_runs.map((run) => ({
-          id: run.id,
-          name: run.name,
-          status: run.status,
-          conclusion: run.conclusion,
-          created_at: run.created_at,
-          updated_at: run.updated_at,
-          html_url: run.html_url,
-          run_number: run.run_number,
-        }));
+        const releases = data
+          .filter((r) => r.tag_name.startsWith("video-"))
+          .map((r) => {
+            const videoAsset = r.assets.find((a) => a.name.endsWith(".mp4"));
+            return {
+              tag: r.tag_name,
+              name: r.name,
+              created_at: r.created_at,
+              video_url: videoAsset ? videoAsset.browser_download_url : null,
+              video_name: videoAsset ? videoAsset.name : null,
+              html_url: r.html_url,
+            };
+          });
 
-        return json({ success: true, runs });
+        return json({ success: true, releases });
       } catch (error) {
         return json({ success: false, error: error.message }, error.status || 500);
       }
     }
 
-    // GET /api/release
+    // GET /api/release — latest release (backward compatible)
     if (request.method === "GET" && path === "/api/release") {
       try {
         const { data } = await octokit.rest.repos.getLatestRelease({
@@ -82,6 +84,39 @@ export default {
       } catch (error) {
         if (error.status === 404) {
           return json({ success: false, error: "No releases found" }, 404);
+        }
+        return json({ success: false, error: error.message }, error.status || 500);
+      }
+    }
+
+    // DELETE /api/release/:tag — delete a specific release and its tag
+    if (request.method === "DELETE" && path.match(/^\/api\/release\/.+$/)) {
+      const tag = path.replace(/^\/api\/release\//, "");
+      try {
+        const { data: release } = await octokit.rest.repos.getReleaseByTag({
+          owner,
+          repo,
+          tag,
+        });
+
+        await octokit.rest.repos.deleteRelease({
+          owner,
+          repo,
+          release_id: release.id,
+        });
+
+        await octokit.rest.git.deleteRef({
+          owner,
+          repo,
+          ref: `tags/${tag}`,
+        }).catch(() => {
+          // Tag may already be deleted by gh release delete --cleanup-tag
+        });
+
+        return json({ success: true, message: `Release '${tag}' deleted.` });
+      } catch (error) {
+        if (error.status === 404) {
+          return json({ success: false, error: `Release '${tag}' not found.` }, 404);
         }
         return json({ success: false, error: error.message }, error.status || 500);
       }

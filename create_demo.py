@@ -9,6 +9,7 @@ from video_editor.config import TextStyle
 INPUT = Path("video.mp4")
 OUTPUT = Path("demo_output.mp4")
 
+WATERMARK_TEXT="@insta_shop"
 STATIC_TEXT = "یک پدر و دوازده فرزند"
 MARQUEE_TEXT = "برای خرید فالوور اینستاگرام به آیا ig_shop پیام بدید"
 

@@ -55,6 +55,7 @@ def trigger_workflow(repo, workflow, token, inputs, branch="main"):
         sys.exit(1)
 
 
+
 def _build_inputs(video_url, static_text, marquee_text, watermark_text, output_format="mp4"):
     """Assemble workflow inputs, dropping empties so defaults are preserved."""
     inputs = {}

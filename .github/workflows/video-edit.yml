@@ -128,10 +128,10 @@ jobs:
       if: github.event.inputs.output_format != 'zip'
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: latest-output
-        name: Latest Video Output
+        tag_name: video-${{ github.run_number }}
+        name: Video Output #${{ github.run_number }}
         files: outputs/output.mp4
-        overwrite_files: true
+        make_latest: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

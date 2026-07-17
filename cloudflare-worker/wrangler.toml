@@ -10,3 +10,4 @@ binding = "ASSETS"
 GITHUB_REPO = "alirezaprogrammermaker/github-video-editor"
 GITHUB_WORKFLOW = "video-edit.yml"
 GITHUB_BRANCH = "main"
+
