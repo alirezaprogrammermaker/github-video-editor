@@ -47,8 +47,6 @@ jobs:
         ffmpeg -i video.mp4 -vf "fps=1/$INTERVAL" -frames:v 5 frame_%d.jpg -y
         echo "Extracted frames:"
         ls -la frame_*.jpg
-        FRAME_COUNT=$(ls frame_*.jpg 2>/dev/null | wc -l)
-        echo "Actual frame count: $FRAME_COUNT"
 
     - name: Extract audio
       run: |
@@ -63,52 +61,38 @@ jobs:
         DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 video.mp4)
         echo "Video duration: $DURATION seconds"
 
-    - name: Send results to webhook
+    - name: Build and send payload
       if: github.event.inputs.webhook_url
       env:
         WEBHOOK_URL: ${{ github.event.inputs.webhook_url }}
         SHORTCODE: ${{ github.event.inputs.shortcode }}
       run: |
-        echo "Encoding frames and audio to base64..."
+        echo "Building payload..."
 
-        # Dynamically encode all available frames
-        FRAMES_JSON="["
-        FIRST=true
+        # Build frames JSON array
+        FRAMES="[]"
         for f in frame_*.jpg; do
           if [ -f "$f" ]; then
             B64=$(base64 -w 0 "$f")
-            if [ "$FIRST" = true ]; then
-              FRAMES_JSON="$FRAMES_JSON\"$B64\""
-              FIRST=false
-            else
-              FRAMES_JSON="$FRAMES_JSON, \"$B64\""
-            fi
+            FRAMES=$(echo "$FRAMES" | sed "s/]/, \"$B64\"]/")
+            FRAMES=$(echo "$FRAMES" | sed "s/\[, /[/")
           fi
         done
-        FRAMES_JSON="$FRAMES_JSON]"
 
-        # Encode audio to base64
-        AUDIO=$(base64 -w 0 audio.wav)
+        # Get audio as base64
+        AUDIO_B64=$(base64 -w 0 audio.wav)
 
         # Get audio duration
-        AUDIO_DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 audio.wav)
+        AUDIO_DUR=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 audio.wav)
 
-        # Build JSON using Python for proper escaping
-        python3 -c "
-import json, sys
-data = {
-    'shortcode': '$SHORTCODE',
-    'frames': json.loads('''$FRAMES_JSON'''),
-    'audio': '$AUDIO',
-    'audio_duration': float('$AUDIO_DURATION')
-}
-with open('payload.json', 'w') as f:
-    json.dump(data, f)
-print(f'Payload created with {len(data[\"frames\"])} frames')
-"
+        # Write payload file
+        echo "{\"shortcode\":\"$SHORTCODE\",\"frames\":$FRAMES,\"audio\":\"$AUDIO_B64\",\"audio_duration\":$AUDIO_DUR}" > payload.json
 
+        echo "Payload size: $(du -h payload.json | cut -f1)"
         echo "Sending to webhook: $WEBHOOK_URL"
+
         curl -s -X POST "$WEBHOOK_URL" \
           -H "Content-Type: application/json" \
           -d @payload.json || true
+
         echo "Webhook sent successfully"
