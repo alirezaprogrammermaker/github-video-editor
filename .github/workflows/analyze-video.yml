@@ -4,92 +4,60 @@ on:
   workflow_dispatch:
     inputs:
       video_url:
-        description: "URL of video to analyze"
+        description: URL of video to analyze
         required: true
       webhook_url:
-        description: "Webhook URL to send results back"
+        description: Webhook URL to send results back
         required: false
       shortcode:
-        description: "Video shortcode identifier"
+        description: Video shortcode identifier
         required: false
-
-env:
-  PYTHONUTF8: "1"
-  PYTHONIOENCODING: "utf-8"
 
 jobs:
   analyze:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
     steps:
     - name: Install FFmpeg
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y ffmpeg
+      run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
     - name: Download video
       env:
         VIDEO_URL: ${{ github.event.inputs.video_url }}
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        echo "Downloading video from: $VIDEO_URL"
         curl -L -o video.mp4 "$VIDEO_URL"
-        FILE_SIZE=$(stat -c%s video.mp4 2>/dev/null || echo "0")
-        echo "Download size: $FILE_SIZE bytes"
-        if [ "$FILE_SIZE" -lt 10000 ]; then
-          echo "Direct download failed, trying API..."
-          REPO=$(echo "$VIDEO_URL" | cut -d'/' -f4-5)
-          TAG=$(echo "$VIDEO_URL" | sed 's|.*/releases/download/||' | cut -d'/' -f1)
-          RELEASE_JSON=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/$REPO/releases/tags/$TAG")
-          ASSET_URL=$(echo "$RELEASE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['assets'][0]['url'])" 2>/dev/null)
-          if [ -n "$ASSET_URL" ]; then
-            curl -L -H "Accept: application/octet-stream" -H "Authorization: Bearer $GH_TOKEN" -o video.mp4 "$ASSET_URL"
-          fi
+        SIZE=$(stat -c%s video.mp4 2>/dev/null || echo 0)
+        if [ "$SIZE" -lt 10000 ]; then
+          REPO=$(echo "$VIDEO_URL" | cut -d/ -f4-5)
+          TAG=$(echo "$VIDEO_URL" | sed 's|.*/releases/download/||' | cut -d/ -f1)
+          JSON=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/$REPO/releases/tags/$TAG")
+          URL=$(echo "$JSON" | python3 -c "import sys,json;print(json.load(sys.stdin)['assets'][0]['url'])")
+          curl -L -H "Accept: application/octet-stream" -H "Authorization: Bearer $GH_TOKEN" -o video.mp4 "$URL"
         fi
-        FINAL_SIZE=$(stat -c%s video.mp4 2>/dev/null || echo "0")
-        if [ "$FINAL_SIZE" -lt 10000 ]; then echo "ERROR: Failed to download"; exit 1; fi
-        echo "Video downloaded: $(du -h video.mp4 | cut -f1)"
+        echo "Size: $(du -h video.mp4 | cut -f1)"
 
     - name: Extract frames
       run: |
-        DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 video.mp4)
-        INTERVAL=$(echo "$DURATION / 5" | bc -l)
-        ffmpeg -i video.mp4 -vf "fps=1/$INTERVAL" -frames:v 5 frame_%d.jpg -y
-        ls -la frame_*.jpg
+        DUR=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 video.mp4)
+        INT=$(echo "$DUR / 5" | bc -l)
+        ffmpeg -i video.mp4 -vf "fps=1/$INT" -frames:v 5 frame_%d.jpg -y
 
     - name: Extract audio
-      run: |
-        ffmpeg -i video.mp4 -vn -acodec pcm_s16le -ar 16000 -ac 1 audio.wav -y
-        ls -la audio.wav
+      run: ffmpeg -i video.mp4 -vn -acodec pcm_s16le -ar 16000 -ac 1 audio.wav -y
 
-    - name: Build payload
+    - name: Send to webhook
       if: github.event.inputs.webhook_url
       env:
         WEBHOOK_URL: ${{ github.event.inputs.webhook_url }}
         SHORTCODE: ${{ github.event.inputs.shortcode }}
       run: |
         python3 -c "
-import base64, json, os, subprocess, glob
-frames = []
-for f in sorted(glob.glob('frame_*.jpg')):
-    with open(f, 'rb') as fh:
-        frames.append(base64.b64encode(fh.read()).decode('utf-8'))
-audio_b64 = ''
-if os.path.exists('audio.wav'):
-    with open('audio.wav', 'rb') as fh:
-        audio_b64 = base64.b64encode(fh.read()).decode('utf-8')
-audio_duration = 0
-try:
-    r = subprocess.run(['ffprobe','-v','error','-show_entries','format=duration','-of','default=noprint_wrappers=1:nokey=1','audio.wav'], capture_output=True, text=True)
-    audio_duration = float(r.stdout.strip())
-except: pass
-payload = {'shortcode': os.environ.get('SHORTCODE',''), 'frames': frames, 'audio': audio_b64, 'audio_duration': audio_duration}
-with open('payload.json', 'w') as f:
-    json.dump(payload, f)
-print(f'Payload: {len(frames)} frames, {os.path.getsize(\"payload.json\")} bytes')
+import base64,json,os,glob
+frames=[base64.b64encode(open(f,'rb').read()).decode() for f in sorted(glob.glob('frame_*.jpg'))]
+audio=open('audio.wav','rb').read() if os.path.exists('audio.wav') else b''
+dur=float(os.popen('ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 audio.wav').read().strip()) if os.path.exists('audio.wav') else 0
+json.dump({'shortcode':os.environ['SHORTCODE'],'frames':frames,'audio':base64.b64encode(audio).decode(),'audio_duration':dur},open('payload.json','w'))
+print(f'{len(frames)} frames')
 "
-        echo "Sending to $WEBHOOK_URL"
-        curl -s -X POST "$WEBHOOK_URL" -H "Content-Type: application/json" -d @payload.json || true
-        echo "Done"
+        curl -s -X POST "$WEBHOOK_URL" -H "Content-Type: application/json" -d @payload.json
+        echo "Sent"
