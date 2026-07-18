@@ -26,6 +26,13 @@ export class Model<T extends Record<string, any>> {
         return results as T[];
     }
 
+    static async sorted<T>(this: any, column: string, direction: 'ASC' | 'DESC' = 'DESC'): Promise<T[]> {
+        const { results } = await this.db
+            .prepare(`SELECT * FROM ${this.table} ORDER BY ${column} ${direction}`)
+            .all();
+        return results as T[];
+    }
+
     static async where<T>(this: any, column: string, value: any): Promise<T[]> {
         const { results } = await this.db
             .prepare(`SELECT * FROM ${this.table} WHERE ${column} = ?`)
@@ -53,8 +60,25 @@ export class Model<T extends Record<string, any>> {
             .run();
     }
 
+    static async updateWhere(this: any, where: Record<string, any>, data: Record<string, any>) {
+        const whereColumns = Object.keys(where);
+        const setColumns = Object.keys(data);
+        const setClause = setColumns.map((c) => `${c} = ?`).join(', ');
+        const whereClause = whereColumns.map((c) => `${c} = ?`).join(' AND ');
+        await this.db
+            .prepare(`UPDATE ${this.table} SET ${setClause} WHERE ${whereClause}`)
+            .bind(...Object.values(data), ...Object.values(where))
+            .run();
+    }
+
     static async delete(this: any, id: string) {
         await this.db.prepare(`DELETE FROM ${this.table} WHERE id = ?`).bind(id).run();
+    }
+
+    static async deleteWhere(this: any, where: Record<string, any>) {
+        const columns = Object.keys(where);
+        const clause = columns.map((c) => `${c} = ?`).join(' AND ');
+        await this.db.prepare(`DELETE FROM ${this.table} WHERE ${clause}`).bind(...Object.values(where)).run();
     }
 
     static async raw<T>(this: any, sql: string, ...params: any[]): Promise<T[]> {

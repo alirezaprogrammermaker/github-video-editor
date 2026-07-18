@@ -5,6 +5,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { ScheduleManager } from '../components/ScheduleManager';
 
 const { Text } = Typography;
+const { TextArea } = Input;
 
 interface ZernioAccount {
     id: string;
@@ -21,6 +22,7 @@ interface SocialAccount {
     profile_image: string | null;
     status: string;
     admin_key: string | null;
+    caption_template: string | null;
     synced_at: string;
 }
 
@@ -149,6 +151,7 @@ export function ZernioSocialAccounts() {
             display_name: record.display_name,
             status: record.status,
             admin_key: record.admin_key,
+            caption_template: record.caption_template || '{caption}',
         });
         setEditModalVisible(true);
     }
@@ -361,6 +364,16 @@ export function ZernioSocialAccounts() {
                     </Form.Item>
                     <Form.Item name="admin_key" label="کلید ادمین" tooltip="کاربران با ارسال این کلید در دایرکت، ادمین پیج می‌شوند">
                         <Input placeholder="مثال: admin123" />
+                    </Form.Item>
+                    <Form.Item
+                        name="caption_template"
+                        label="قالب کپشن"
+                        tooltip="از {caption} برای جایگذاری کپشن اصلی استفاده کنید. مثال: پیج ما را فالو کنید {caption} #hot"
+                    >
+                        <TextArea
+                            placeholder="پیج ما را فالو کنید {caption} #hot"
+                            autoSize={{ minRows: 2, maxRows: 4 }}
+                        />
                     </Form.Item>
                 </Form>
 

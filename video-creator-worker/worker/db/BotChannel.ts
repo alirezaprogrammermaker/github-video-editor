@@ -15,4 +15,8 @@ export class BotChannel extends Model<BotChannelRow> {
     static async findMandatory(this: any): Promise<BotChannelRow[]> {
         return this.where('is_mandatory', 1);
     }
+
+    static async setMandatory(id: number, isMandatory: boolean) {
+        await this.update(String(id), { is_mandatory: isMandatory ? 1 : 0 });
+    }
 }

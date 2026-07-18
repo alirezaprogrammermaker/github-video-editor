@@ -434,11 +434,7 @@ dashboard.put('/bot-channels/:id', async (c) => {
             }
         }
 
-        await BotChannel.raw(
-            `UPDATE bot_channels SET is_mandatory = ? WHERE id = ?`,
-            is_mandatory ? 1 : 0,
-            id,
-        );
+        await BotChannel.setMandatory(id, is_mandatory);
         return c.json({ ok: true });
     } catch (e: any) {
         return c.json({ error: e?.message || 'خطا در بروزرسانی' }, 500);
@@ -813,7 +809,13 @@ dashboard.post('/zernio-social-accounts/sync/:zernioAccountId', async (c) => {
 dashboard.put('/zernio-social-accounts/:id', async (c) => {
     try {
         const id = c.req.param('id');
-        const { username, display_name, status, admin_key } = await c.req.json<{ username?: string; display_name?: string; status?: string; admin_key?: string }>();
+        const { username, display_name, status, admin_key, caption_template } = await c.req.json<{
+            username?: string;
+            display_name?: string;
+            status?: string;
+            admin_key?: string;
+            caption_template?: string;
+        }>();
 
         ZernioSocialAccount.use(c.env.DB);
         const existing = await ZernioSocialAccount.find(id);
@@ -824,6 +826,7 @@ dashboard.put('/zernio-social-accounts/:id', async (c) => {
         if (display_name !== undefined) updates.display_name = display_name;
         if (status !== undefined) updates.status = status;
         if (admin_key !== undefined) updates.admin_key = admin_key || null;
+        if (caption_template !== undefined) updates.caption_template = caption_template || '{caption}';
 
         await ZernioSocialAccount.update(id, updates);
         return c.json({ ok: true });

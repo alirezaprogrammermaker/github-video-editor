@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { InstagramVideo, type InstagramVideoRow } from '../db/InstagramVideo';
 import { VideoTemplate, type VideoTemplateRow } from '../db/VideoTemplate';
 import { ZernioAccount, type ZernioAccountRow } from '../db/ZernioAccount';
+import { ZernioSocialAccount } from '../db/ZernioSocialAccount';
 import { Setting } from '../db/Setting';
 import { requireAuth } from '../middleware';
 import { nowTehran } from '../timezone';
@@ -85,7 +86,7 @@ videos.get('/templates/:id', async (c) => {
 videos.get('/', async (c) => {
     try {
         InstagramVideo.use(c.env.DB);
-        const allVideos = await InstagramVideo.all<InstagramVideoRow>();
+        const allVideos = await InstagramVideo.sorted<InstagramVideoRow>('created_at', 'DESC');
         return c.json(allVideos);
     } catch (e: any) {
         return c.json({ error: e?.message || 'خطا در دریافت ویدیوها' }, 500);
@@ -251,6 +252,12 @@ videos.post('/:shortcode/publish', async (c) => {
         const apiKey = zernioAccounts[0].api_key;
         const accountId = video.social_account_id.replace('sa_', '');
 
+        // Render caption using template
+        const rawCaption = video.user_caption || video.original_caption || '';
+        ZernioSocialAccount.use(c.env.DB);
+        const socialAccount = await ZernioSocialAccount.findByAccountId(video.social_account_id);
+        const finalCaption = ZernioSocialAccount.renderCaption(socialAccount?.caption_template ?? null, rawCaption);
+
         const publishRes = await fetch('https://zernio.com/api/v1/posts', {
             method: 'POST',
             headers: {
@@ -258,7 +265,7 @@ videos.post('/:shortcode/publish', async (c) => {
                 'Authorization': `Bearer ${apiKey}`,
             },
             body: JSON.stringify({
-                content: video.user_caption || video.original_caption || '',
+                content: finalCaption,
                 mediaItems: [{ url: video.output_url, type: 'video' }],
                 platforms: [
                     { platform: 'instagram', accountId },

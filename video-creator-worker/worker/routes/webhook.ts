@@ -144,11 +144,7 @@ function detectSharedPost(message: any): { isShare: boolean; isReel: boolean; li
 
 async function findSocialAccountByZernioAccountId(db: D1Database, zernioAccountId: string): Promise<ZernioSocialAccountRow | null> {
     ZernioSocialAccount.use(db);
-    const result = await db
-        .prepare(`SELECT * FROM zernio_social_accounts WHERE account_id = ?`)
-        .bind(zernioAccountId)
-        .first();
-    return (result as unknown as ZernioSocialAccountRow) || null;
+    return ZernioSocialAccount.findByAccountId(zernioAccountId);
 }
 
 async function isAdmin(db: D1Database, socialAccountId: string, userId: string): Promise<boolean> {

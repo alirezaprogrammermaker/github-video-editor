@@ -39,6 +39,13 @@ export class InstagramVideo extends Model<InstagramVideoRow> {
         return this.where<InstagramVideoRow>('status', status);
     }
 
+    static async findPublishedWithoutPostId() {
+        return this.raw<InstagramVideoRow>(
+            `SELECT * FROM ${this.table} WHERE status = ? AND published_post_id IS NULL`,
+            VideoStatus.PUBLISHED
+        );
+    }
+
     static async createVideo(data: {
         social_account_id: string;
         shortcode: string;

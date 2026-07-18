@@ -9,6 +9,7 @@ export interface ZernioSocialAccountRow {
     profile_image: string | null;
     status: string;
     admin_key: string | null;
+    caption_template: string | null;
     raw_data: string | null;
     synced_at: string;
     created_at?: string;
@@ -29,19 +30,31 @@ export class ZernioSocialAccount extends Model<ZernioSocialAccountRow> {
         display_name?: string;
         profile_image?: string;
         status?: string;
+        caption_template?: string;
         raw_data?: string;
     }) {
         const existing = await this.findByAccountId(data.account_id);
         if (existing) {
-            await this.db
-                .prepare(`UPDATE ${this.table} SET platform = ?, username = ?, display_name = ?, profile_image = ?, status = ?, raw_data = ?, synced_at = datetime('now'), updated_at = datetime('now') WHERE account_id = ?`)
-                .bind(data.platform, data.username ?? null, data.display_name ?? null, data.profile_image ?? null, data.status ?? 'active', data.raw_data ?? null, data.account_id)
-                .run();
+            await this.updateWhere(
+                { account_id: data.account_id },
+                {
+                    platform: data.platform,
+                    username: data.username ?? null,
+                    display_name: data.display_name ?? null,
+                    profile_image: data.profile_image ?? null,
+                    status: data.status ?? 'active',
+                    caption_template: data.caption_template ?? existing.caption_template,
+                    raw_data: data.raw_data ?? null,
+                    synced_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                }
+            );
         } else {
             await this.create({
                 id: `sa_${data.account_id}`,
                 ...data,
                 status: data.status ?? 'active',
+                caption_template: data.caption_template ?? '{caption}',
                 raw_data: data.raw_data ?? null,
                 synced_at: new Date().toISOString(),
             });
@@ -49,6 +62,11 @@ export class ZernioSocialAccount extends Model<ZernioSocialAccountRow> {
     }
 
     static async deleteByAccountId(account_id: string) {
-        await this.db.prepare(`DELETE FROM ${this.table} WHERE account_id = ?`).bind(account_id).run();
+        await this.deleteWhere({ account_id });
+    }
+
+    static renderCaption(template: string | null, caption: string): string {
+        if (!template) return caption;
+        return template.replace(/\{caption\}/g, caption);
     }
 }

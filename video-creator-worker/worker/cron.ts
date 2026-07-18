@@ -1,6 +1,7 @@
 import { InstagramVideo, type InstagramVideoRow } from './db/InstagramVideo';
 import { ZernioAccount, type ZernioAccountRow } from './db/ZernioAccount';
 import { ZernioSocialAccount } from './db/ZernioSocialAccount';
+import { PageAdmin } from './db/PageAdmin';
 import { Schedule, type ScheduleRow } from './db/Schedule';
 import { Setting } from './db/Setting';
 import { nowTehran, tehranTime } from './timezone';
@@ -226,6 +227,12 @@ async function checkScheduleForPublish(db: D1Database, hour: number, minute: num
 
         const apiKey = zernioAccounts[0].api_key;
 
+        // Render caption using template
+        const rawCaption = readyVideo.user_caption || readyVideo.original_caption || '';
+        ZernioSocialAccount.use(db);
+        const socialAccount = await ZernioSocialAccount.findByAccountId(readyVideo.social_account_id);
+        const finalCaption = ZernioSocialAccount.renderCaption(socialAccount?.caption_template ?? null, rawCaption);
+
         // Publish via Zernio
         try {
             const publishRes = await fetch('https://zernio.com/api/v1/posts', {
@@ -235,7 +242,7 @@ async function checkScheduleForPublish(db: D1Database, hour: number, minute: num
                     'Authorization': `Bearer ${apiKey}`,
                 },
                 body: JSON.stringify({
-                    content: readyVideo.user_caption || readyVideo.original_caption || '',
+                    content: finalCaption,
                     mediaItems: [{ url: readyVideo.output_url, type: 'video' }],
                     platforms: [
                         { platform: 'instagram', accountId: schedule.social_account_id.replace('sa_', '') },
@@ -269,9 +276,7 @@ async function checkScheduleForPublish(db: D1Database, hour: number, minute: num
 
 async function checkZernioPublishStatus(db: D1Database) {
     InstagramVideo.use(db);
-    const pendingVideos = await InstagramVideo.raw<InstagramVideoRow>(
-        `SELECT * FROM instagram_videos WHERE status = '${VideoStatus.PUBLISHED}' AND published_post_id IS NULL`
-    );
+    const pendingVideos = await InstagramVideo.findPublishedWithoutPostId();
 
     if (pendingVideos.length === 0) return;
 
@@ -296,9 +301,8 @@ async function checkZernioPublishStatus(db: D1Database) {
 async function notifyAdmin(db: D1Database, socialAccountId: string, message: string) {
     try {
         // Find admin users for this social account
-        const { results: admins } = await db.prepare(
-            `SELECT * FROM zernio_page_admins WHERE social_account_id = ?`
-        ).bind(socialAccountId).all();
+        PageAdmin.use(db);
+        const admins = await PageAdmin.findBySocialAccount(socialAccountId);
 
         if (admins.length === 0) return;
 
