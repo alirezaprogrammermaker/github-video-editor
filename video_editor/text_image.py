@@ -189,6 +189,76 @@ class TextImageGenerator:
             images.append(self.render(line, path))
         return images
 
+    def render_combined(self, lines: List[str], output_path: str | Path) -> TextImage:
+        """Render multiple lines of text into a single combined PNG."""
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if len(lines) == 1:
+            return self.render(lines[0], output_path)
+
+        # Render each line to get dimensions
+        line_images = []
+        for line in lines:
+            shaped = _shape_text(line)
+            display_text = get_display(shaped)
+            bbox = self._font.getbbox(display_text)
+            text_w = bbox[2] - bbox[0]
+            text_h = bbox[3] - bbox[1]
+            padding = self._bg_padding + self._border_width + self._shadow_offset
+            line_images.append((display_text, text_w, text_h, padding, bbox))
+
+        # Calculate combined dimensions
+        max_width = max(li[1] for li in line_images) + 2 * line_images[0][3]
+        total_height = sum(li[2] + line_images[0][3] * 2 for li in line_images)
+        line_spacing = self._font_size // 4  # spacing between lines
+        total_height += line_spacing * (len(lines) - 1)
+
+        # Ensure even dimensions
+        max_width = max_width + (max_width % 2)
+        total_height = total_height + (total_height % 2)
+
+        img = Image.new("RGBA", (max_width, total_height), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+
+        # Background box
+        if self._bg_color:
+            draw.rounded_rectangle(
+                [0, 0, max_width - 1, total_height - 1],
+                radius=8,
+                fill=self._bg_color,
+            )
+
+        # Render each line
+        y_offset = line_images[0][3]  # start with padding
+        for i, (display_text, text_w, text_h, padding, bbox) in enumerate(line_images):
+            # Center horizontally
+            text_x = (max_width - text_w) // 2 - bbox[0]
+            text_y = y_offset - bbox[1]
+
+            # Shadow
+            if self._shadow_offset:
+                shadow_x = text_x + self._shadow_offset
+                shadow_y = text_y + self._shadow_offset
+                draw.text((shadow_x, shadow_y), display_text, font=self._font,
+                          fill=self._shadow_color)
+
+            # Main text
+            draw.text((text_x, text_y), display_text, font=self._font,
+                      fill=self._font_color)
+
+            y_offset += text_h + padding * 2
+            if i < len(lines) - 1:
+                y_offset += line_spacing
+
+        img.save(str(output_path), "PNG")
+
+        return TextImage(
+            path=str(output_path),
+            width=max_width,
+            height=total_height,
+        )
+
     def cleanup(self, images: List[TextImage]) -> None:
         """Remove temporary image files."""
         for img in images:

@@ -219,15 +219,17 @@ class TemplateRenderer:
 
         if is_marquee:
             y = block.get_y_positions(video_h, "marquee")[0]
+            suffix = "_marquee_imgs"
+            images = img_gen.render_lines(block.lines, self._work_dir / suffix)
         else:
-            img = img_gen.render_lines(block.lines, self._work_dir / "_tmp")
+            # Use combined rendering for static text (multi-line support)
+            combined_path = self._work_dir / "_static_combined.png"
+            combined_img = img_gen.render_combined(block.lines, combined_path)
             y = layout.vertical_position(
-                img[0].height, "bottom", margin_percent=0.15
+                combined_img.height, "bottom", margin_percent=0.15
             )
-            img_gen.cleanup(img)
+            images = [combined_img]
 
-        suffix = "_marquee_imgs" if is_marquee else "_text_imgs"
-        images = img_gen.render_lines(block.lines, self._work_dir / suffix)
         return images, y
 
     def _build_multi_vf(
@@ -261,12 +263,25 @@ class TemplateRenderer:
         else:
             last = "[0:v]"
 
-        # Marquee text (marquee_start → end) — LTR: enters left, exits right
+        # Marquee text (marquee_start → end) — LTR scroll that loops until end.
+        # Auto-speed: the text should traverse at least ~3 times in the available
+        # window (with one extra pass per 30s), but never faster than 400 px/s or
+        # slower than 180 px/s so it stays readable. `speed` (template/CLI) acts
+        # as a multiplier on top of this baseline. Longer clips scroll slightly
+        # slower (clamped to the floor) and thus show more passes.
         if marquee_imgs:
             img = marquee_imgs[0]
+            cycle_pixels = img.width + vw
+            marquee_window = max(1.0, marquee_duration)
+            target_cycles = 3.0 + marquee_window / 30.0
+            needed_pxps = cycle_pixels * target_cycles / marquee_window
+            base_pxps = max(180.0, min(400.0, needed_pxps))
+            pxps = base_pxps * max(speed, 0.01)
+            cycle_duration = max(0.5, cycle_pixels / pxps)
+            # local time since marquee started, wrapped into [0, cycle_pixels)
             x_expr = (
-                f"-{img.width}+({img.width}+w)"
-                f"*(t-{marquee_start})/({marquee_duration})"
+                f"-{img.width}+mod({cycle_pixels}*"
+                f"(t-{marquee_start})/{cycle_duration}\\,{cycle_pixels})"
             )
             parts.append(
                 f"{last}[2:v]overlay={x_expr}:{marquee_y}"
