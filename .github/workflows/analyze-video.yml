@@ -105,32 +105,54 @@ jobs:
         WEBHOOK_URL: ${{ github.event.inputs.webhook_url }}
         SHORTCODE: ${{ github.event.inputs.shortcode }}
       run: |
-        echo "Building payload..."
+        echo "Building payload with Python..."
 
-        # Build frames JSON array
-        FRAMES="[]"
-        for f in frame_*.jpg; do
-          if [ -f "$f" ]; then
-            B64=$(base64 -w 0 "$f")
-            FRAMES=$(echo "$FRAMES" | sed "s/]/, \"$B64\"]/")
-            FRAMES=$(echo "$FRAMES" | sed "s/\[, /[/")
-          fi
-        done
+        python3 << 'PYEOF'
+import base64, json, os, subprocess, glob
 
-        # Get audio as base64
-        AUDIO_B64=$(base64 -w 0 audio.wav)
+shortcode = os.environ.get("SHORTCODE", "")
+webhook_url = os.environ.get("WEBHOOK_URL", "")
 
-        # Get audio duration
-        AUDIO_DUR=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 audio.wav)
+# Read frames
+frames = []
+for f in sorted(glob.glob("frame_*.jpg")):
+    with open(f, "rb") as fh:
+        frames.append(base64.b64encode(fh.read()).decode("utf-8"))
+print(f"Frames: {len(frames)}")
 
-        # Write payload file
-        echo "{\"shortcode\":\"$SHORTCODE\",\"frames\":$FRAMES,\"audio\":\"$AUDIO_B64\",\"audio_duration\":$AUDIO_DUR}" > payload.json
+# Read audio
+audio_b64 = ""
+if os.path.exists("audio.wav"):
+    with open("audio.wav", "rb") as fh:
+        audio_b64 = base64.b64encode(fh.read()).decode("utf-8")
 
-        echo "Payload size: $(du -h payload.json | cut -f1)"
+# Get audio duration
+audio_duration = 0
+try:
+    result = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "default=noprint_wrappers=1:nokey=1", "audio.wav"],
+        capture_output=True, text=True
+    )
+    audio_duration = float(result.stdout.strip())
+except:
+    pass
+
+payload = {
+    "shortcode": shortcode,
+    "frames": frames,
+    "audio": audio_b64,
+    "audio_duration": audio_duration
+}
+
+with open("payload.json", "w") as f:
+    json.dump(payload, f)
+
+print(f"Payload size: {os.path.getsize('payload.json')} bytes")
+PYEOF
+
         echo "Sending to webhook: $WEBHOOK_URL"
-
         curl -s -X POST "$WEBHOOK_URL" \
           -H "Content-Type: application/json" \
           -d @payload.json || true
-
         echo "Webhook sent successfully"
