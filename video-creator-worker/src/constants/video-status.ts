@@ -1,8 +1,8 @@
 export const VideoStatus = {
     PENDING: 'pending',
     BUILDING: 'building',
-    READY: 'ready',
-    READY_FOR_PUBLISH: 'ready_for_publish',
+    READY_FOR_CREATE_VIDEO: 'ready_for_create_video',
+    WAIT_FOR_PUBLISH: 'wait_for_publish',
     PUBLISHED: 'published',
     FAILED: 'failed',
 } as const;

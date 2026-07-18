@@ -220,7 +220,7 @@ export function VideoEdit() {
             });
             const data = await res.json();
             if (!res.ok) return message.error(data.error);
-            if (data.status === VideoStatus.READY) {
+            if (data.status === VideoStatus.WAIT_FOR_PUBLISH) {
                 message.success('ویدیو آماده شد!');
             } else if (data.status === 'in_progress') {
                 message.info('Workflow هنوز در حال اجراست...');
@@ -284,15 +284,15 @@ export function VideoEdit() {
                         <Space wrap>
                             <Tag color="blue">{video.shortcode}</Tag>
                             <Tag color={
-                                video.status === VideoStatus.READY ? 'green' :
+                                video.status === VideoStatus.WAIT_FOR_PUBLISH ? 'cyan' :
                                 video.status === VideoStatus.BUILDING ? 'processing' :
-                                video.status === VideoStatus.READY_FOR_PUBLISH ? 'cyan' :
+                                video.status === VideoStatus.READY_FOR_CREATE_VIDEO ? 'green' :
                                 video.status === VideoStatus.FAILED ? 'red' :
                                 video.status === VideoStatus.PUBLISHED ? 'purple' : 'default'
                             }>
-                                {video.status === VideoStatus.READY ? 'آماده' :
+                                {video.status === VideoStatus.WAIT_FOR_PUBLISH ? 'آماده انتشار' :
                                  video.status === VideoStatus.BUILDING ? 'در حال ساخت' :
-                                 video.status === VideoStatus.READY_FOR_PUBLISH ? 'آماده انتشار' :
+                                 video.status === VideoStatus.READY_FOR_CREATE_VIDEO ? 'آماده ساخت' :
                                  video.status === VideoStatus.FAILED ? 'ناموفق' :
                                  video.status === VideoStatus.PUBLISHED ? 'منتشر شده' : 'در انتظار'}
                             </Tag>
@@ -393,7 +393,7 @@ export function VideoEdit() {
                             <Select
                                 options={[
                                     { label: 'در انتظار', value: VideoStatus.PENDING },
-                                    { label: 'آماده', value: VideoStatus.READY },
+                                    { label: 'آماده ساخت', value: VideoStatus.READY_FOR_CREATE_VIDEO },
                                     { label: 'منتشر شده', value: VideoStatus.PUBLISHED },
                                 ]}
                             />

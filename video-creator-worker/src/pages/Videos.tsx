@@ -97,8 +97,8 @@ export function Videos() {
                 const statusMap: Record<string, { color: string; label: string }> = {
                     [VideoStatus.PENDING]: { color: 'default', label: 'در انتظار' },
                     [VideoStatus.BUILDING]: { color: 'processing', label: 'در حال ساخت' },
-                    [VideoStatus.READY]: { color: 'green', label: 'آماده' },
-                    [VideoStatus.READY_FOR_PUBLISH]: { color: 'cyan', label: 'آماده انتشار' },
+                    [VideoStatus.READY_FOR_CREATE_VIDEO]: { color: 'green', label: 'آماده ساخت' },
+                    [VideoStatus.WAIT_FOR_PUBLISH]: { color: 'cyan', label: 'آماده انتشار' },
                     [VideoStatus.PUBLISHED]: { color: 'purple', label: 'منتشر شده' },
                     [VideoStatus.FAILED]: { color: 'red', label: 'ناموفق' },
                 };
@@ -127,7 +127,7 @@ export function Videos() {
                         icon={<EditOutlined />}
                         onClick={() => navigate(`/videos/edit/${record.shortcode}`)}
                     />
-                    {record.status === VideoStatus.READY_FOR_PUBLISH && (
+                    {record.status === VideoStatus.WAIT_FOR_PUBLISH && (
                         <Popconfirm title="همین الان منتشر شود؟" onConfirm={() => handlePublishNow(record.shortcode)}>
                             <Button type="text" icon={<SendOutlined />} style={{ color: '#1677ff' }} />
                         </Popconfirm>

@@ -33,7 +33,7 @@ export async function handleScheduledEvent(
 
 async function processReadyVideos(db: D1Database) {
     InstagramVideo.use(db);
-    const readyVideos = await InstagramVideo.where<InstagramVideoRow>('status', VideoStatus.READY);
+    const readyVideos = await InstagramVideo.where<InstagramVideoRow>('status', VideoStatus.READY_FOR_CREATE_VIDEO);
 
     if (readyVideos.length === 0) return;
 
@@ -163,7 +163,7 @@ async function checkBuildingVideos(db: D1Database) {
                 const outputUrl = `https://github.com/${repo}/releases/download/video-${completedRun.run_number}/output.mp4`;
 
                 await InstagramVideo.update(video.id, {
-                    status: VideoStatus.READY_FOR_PUBLISH,
+                    status: VideoStatus.WAIT_FOR_PUBLISH,
                     output_url: outputUrl,
                     build_log: 'ویدیو آماده انتشار',
                     updated_at: nowTehran(),
@@ -205,7 +205,7 @@ async function checkScheduleForPublish(db: D1Database, hour: number, minute: num
         // Find a video ready for publish for this social account
         InstagramVideo.use(db);
         const videos = await InstagramVideo.where<InstagramVideoRow>('social_account_id', schedule.social_account_id);
-        const readyVideo = videos.find(v => v.status === VideoStatus.READY_FOR_PUBLISH && v.output_url);
+        const readyVideo = videos.find(v => v.status === VideoStatus.WAIT_FOR_PUBLISH && v.output_url);
 
         if (!readyVideo) {
             console.log(`[Cron] No ready video for ${schedule.social_account_id}`);

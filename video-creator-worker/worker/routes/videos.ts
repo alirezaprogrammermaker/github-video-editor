@@ -233,7 +233,7 @@ videos.post('/:shortcode/publish', async (c) => {
         InstagramVideo.use(c.env.DB);
         const video = await InstagramVideo.findByShortcode(shortcode);
         if (!video) return c.json({ error: 'ویدیو یافت نشد' }, 404);
-        if (video.status !== VideoStatus.READY_FOR_PUBLISH) {
+        if (video.status !== VideoStatus.WAIT_FOR_PUBLISH) {
             return c.json({ error: 'ویدیو آماده انتشار نیست' }, 400);
         }
         if (!video.output_url) {
@@ -449,24 +449,24 @@ videos.post('/check-workflow/:shortcode', async (c) => {
 
                 if (videoAsset) {
                     await InstagramVideo.update(video.id, {
-                        status: VideoStatus.READY_FOR_PUBLISH,
+                        status: VideoStatus.WAIT_FOR_PUBLISH,
                         output_url: videoAsset.browser_download_url,
                         build_log: `Workflow completed. Video: ${videoAsset.name}`,
                         updated_at: nowTehran(),
                     });
-                    return c.json({ ok: true, status: VideoStatus.READY_FOR_PUBLISH, output_url: videoAsset.browser_download_url });
+                    return c.json({ ok: true, status: VideoStatus.WAIT_FOR_PUBLISH, output_url: videoAsset.browser_download_url });
                 }
             }
 
             // If no release found, construct the URL
             const outputUrl = `https://github.com/${repo}/releases/download/video-${latestRun.run_number}/output.mp4`;
             await InstagramVideo.update(video.id, {
-                status: VideoStatus.READY_FOR_PUBLISH,
+                status: VideoStatus.WAIT_FOR_PUBLISH,
                 output_url: outputUrl,
                 build_log: 'Workflow completed successfully',
                 updated_at: nowTehran(),
             });
-            return c.json({ ok: true, status: VideoStatus.READY_FOR_PUBLISH, output_url: outputUrl });
+            return c.json({ ok: true, status: VideoStatus.WAIT_FOR_PUBLISH, output_url: outputUrl });
         }
 
         // Workflow failed
