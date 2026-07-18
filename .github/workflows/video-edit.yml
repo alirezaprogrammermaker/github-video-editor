@@ -6,6 +6,10 @@ on:
       video_url:
         description: "URL of video to edit (leave empty to use bundled video.mp4)"
         required: false
+      template:
+        description: "Template name to use for editing (e.g. default)"
+        required: false
+        default: "default"
       static_text:
         description: "Static text for first phase (0-2s)"
         required: false
@@ -106,6 +110,7 @@ jobs:
     - name: Edit video
       env:
         VIDEO_URL: ${{ github.event.inputs.video_url }}
+        TEMPLATE: ${{ github.event.inputs.template }}
         STATIC_TEXT: ${{ github.event.inputs.static_text }}
         MARQUEE_TEXT: ${{ github.event.inputs.marquee_text }}
         WATERMARK_TEXT: ${{ github.event.inputs.watermark_text }}
@@ -114,8 +119,9 @@ jobs:
         if [ -n "$VIDEO_URL" ]; then
           INPUT_VIDEO="input_video.mp4"
         fi
+        echo "Using template: $TEMPLATE"
         python main.py "$INPUT_VIDEO" output.mp4 \
-          --template default \
+          --template "$TEMPLATE" \
           --static-text "$STATIC_TEXT" \
           --marquee-text "$MARQUEE_TEXT" \
           --watermark-text "$WATERMARK_TEXT"
