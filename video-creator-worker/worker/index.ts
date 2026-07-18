@@ -37,12 +37,12 @@ app.post('/api/callback/workflow', async (c) => {
 
         if (body.status === 'success' && body.output_url) {
             await InstagramVideo.update(video.id, {
-                status: VideoStatus.READY,
+                status: VideoStatus.READY_FOR_PUBLISH,
                 output_url: body.output_url,
                 build_log: `Build completed via webhook. Tag: ${body.tag}`,
                 updated_at: nowTehran(),
             });
-            console.log(`[App] Video ${body.shortcode} marked as READY via webhook`);
+            console.log(`[App] Video ${body.shortcode} marked as READY_FOR_PUBLISH via webhook`);
         } else if (body.status === 'failure') {
             await InstagramVideo.update(video.id, {
                 status: VideoStatus.FAILED,

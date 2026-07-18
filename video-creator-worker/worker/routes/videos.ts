@@ -449,24 +449,24 @@ videos.post('/check-workflow/:shortcode', async (c) => {
 
                 if (videoAsset) {
                     await InstagramVideo.update(video.id, {
-                        status: VideoStatus.READY,
+                        status: VideoStatus.READY_FOR_PUBLISH,
                         output_url: videoAsset.browser_download_url,
                         build_log: `Workflow completed. Video: ${videoAsset.name}`,
                         updated_at: nowTehran(),
                     });
-                    return c.json({ ok: true, status: VideoStatus.READY, output_url: videoAsset.browser_download_url });
+                    return c.json({ ok: true, status: VideoStatus.READY_FOR_PUBLISH, output_url: videoAsset.browser_download_url });
                 }
             }
 
             // If no release found, construct the URL
             const outputUrl = `https://github.com/${repo}/releases/download/video-${latestRun.run_number}/output.mp4`;
             await InstagramVideo.update(video.id, {
-                status: VideoStatus.READY,
+                status: VideoStatus.READY_FOR_PUBLISH,
                 output_url: outputUrl,
                 build_log: 'Workflow completed successfully',
                 updated_at: nowTehran(),
             });
-            return c.json({ ok: true, status: VideoStatus.READY, output_url: outputUrl });
+            return c.json({ ok: true, status: VideoStatus.READY_FOR_PUBLISH, output_url: outputUrl });
         }
 
         // Workflow failed
