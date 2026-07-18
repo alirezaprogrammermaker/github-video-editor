@@ -32,9 +32,47 @@ jobs:
     - name: Download video
       env:
         VIDEO_URL: ${{ github.event.inputs.video_url }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         echo "Downloading video from: $VIDEO_URL"
+
+        # Check if direct download works
         curl -L -o video.mp4 "$VIDEO_URL"
+        FILE_SIZE=$(stat -c%s video.mp4 2>/dev/null || echo "0")
+        echo "Initial download size: $FILE_SIZE bytes"
+
+        # If file is too small, it's probably an error page - use API instead
+        if [ "$FILE_SIZE" -lt 10000 ]; then
+          echo "Direct download failed, trying API download..."
+
+          # Extract repo and tag from URL
+          # URL format: https://github.com/owner/repo/releases/download/tag/file.mp4
+          REPO=$(echo "$VIDEO_URL" | cut -d'/' -f4-5)
+          TAG=$(echo "$VIDEO_URL" | sed 's|.*/releases/download/||' | cut -d'/' -f1)
+
+          echo "Repo: $REPO, Tag: $TAG"
+
+          # Get release info via API
+          RELEASE_JSON=$(curl -s -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/$REPO/releases/tags/$TAG")
+
+          # Extract asset URL
+          ASSET_URL=$(echo "$RELEASE_JSON" | python3 -c "import sys,json; r=json.load(sys.stdin); print(r['assets'][0]['url'])" 2>/dev/null)
+
+          if [ -n "$ASSET_URL" ]; then
+            echo "Asset URL: $ASSET_URL"
+            curl -L -H "Accept: application/octet-stream" \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -o video.mp4 "$ASSET_URL"
+          fi
+        fi
+
+        FINAL_SIZE=$(stat -c%s video.mp4 2>/dev/null || echo "0")
+        echo "Final video size: $FINAL_SIZE bytes"
+        if [ "$FINAL_SIZE" -lt 10000 ]; then
+          echo "ERROR: Failed to download video"
+          exit 1
+        fi
         echo "Downloaded video size: $(du -h video.mp4 | cut -f1)"
 
     - name: Extract key frames
