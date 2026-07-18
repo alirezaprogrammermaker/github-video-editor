@@ -1,0 +1,59 @@
+body {
+    margin: 0;
+}
+
+/* Global responsive fixes */
+@media (max-width: 768px) {
+    /* Make all tables horizontally scrollable */
+    .ant-table-wrapper {
+        overflow-x: auto;
+    }
+
+    /* Stack Ant Design Space components on mobile */
+    .ant-space.ant-space-horizontal {
+        flex-wrap: wrap;
+    }
+
+    /* Fix modal width on mobile */
+    .ant-modal-wrap {
+        padding: 16px;
+    }
+
+    .ant-modal {
+        max-width: calc(100vw - 32px) !important;
+    }
+
+    /* Fix Descriptions on mobile */
+    .ant-descriptions-item-label,
+    .ant-descriptions-item-content {
+        font-size: 13px !important;
+    }
+
+    /* Fix Card titles */
+    .ant-card-head {
+        min-height: auto !important;
+        padding: 12px 16px !important;
+    }
+
+    .ant-card-head-title {
+        padding: 0 !important;
+        font-size: 15px;
+    }
+
+    /* Fix form items */
+    .ant-form-item {
+        margin-bottom: 16px !important;
+    }
+
+    /* Fix compact space */
+    .ant-space-compact {
+        flex-wrap: wrap;
+    }
+}
+
+/* Tablet adjustments */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .ant-table-wrapper {
+        overflow-x: auto;
+    }
+}

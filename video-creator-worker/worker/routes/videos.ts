@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { InstagramVideo, type InstagramVideoRow } from '../db/InstagramVideo';
 import { VideoTemplate, type VideoTemplateRow } from '../db/VideoTemplate';
+import { ZernioAccount, type ZernioAccountRow } from '../db/ZernioAccount';
 import { Setting } from '../db/Setting';
 import { requireAuth } from '../middleware';
 import { nowTehran } from '../timezone';
@@ -158,7 +159,6 @@ videos.put('/:shortcode', async (c) => {
             })());
         } else {
             updates.status = body.status ?? video.status;
-            if (body.status === VideoStatus.NOW) updates.published_at = nowTehran();
         }
 
         await InstagramVideo.update(video.id, updates);
@@ -221,6 +221,67 @@ videos.post('/:shortcode/delete-release', async (c) => {
         return c.json(result);
     } catch (e: any) {
         return c.json({ error: e?.message || 'خطا در حذف release' }, 500);
+    }
+});
+
+// --- Publish Now ---
+
+videos.post('/:shortcode/publish', async (c) => {
+    try {
+        const shortcode = c.req.param('shortcode');
+        InstagramVideo.use(c.env.DB);
+        const video = await InstagramVideo.findByShortcode(shortcode);
+        if (!video) return c.json({ error: 'ویدیو یافت نشد' }, 404);
+        if (video.status !== VideoStatus.READY_FOR_PUBLISH) {
+            return c.json({ error: 'ویدیو آماده انتشار نیست' }, 400);
+        }
+        if (!video.output_url) {
+            return c.json({ error: 'لینک خروجی ویدیو موجود نیست' }, 400);
+        }
+        if (!video.social_account_id) {
+            return c.json({ error: 'حساب اجتماعی ویدیو تنظیم نشده' }, 400);
+        }
+
+        ZernioAccount.use(c.env.DB);
+        const zernioAccounts = await ZernioAccount.all<ZernioAccountRow>();
+        if (zernioAccounts.length === 0) {
+            return c.json({ error: 'حساب Zernio تنظیم نشده' }, 400);
+        }
+
+        const apiKey = zernioAccounts[0].api_key;
+        const accountId = video.social_account_id.replace('sa_', '');
+
+        const publishRes = await fetch('https://zernio.com/api/v1/posts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+                content: video.user_caption || video.original_caption || '',
+                mediaItems: [{ url: video.output_url, type: 'video' }],
+                platforms: [
+                    { platform: 'instagram', accountId },
+                ],
+                publishNow: true,
+            }),
+        });
+
+        const publishData = await publishRes.json() as { success?: boolean; data?: { post?: { id: string } } };
+
+        if (publishData.success && publishData.data?.post?.id) {
+            await InstagramVideo.update(video.id, {
+                status: VideoStatus.PUBLISHED,
+                published_post_id: publishData.data.post.id,
+                published_at: nowTehran(),
+                updated_at: nowTehran(),
+            });
+            return c.json({ ok: true, post_id: publishData.data.post.id });
+        } else {
+            return c.json({ error: 'انتشار ناموفق بود' }, 500);
+        }
+    } catch (e: any) {
+        return c.json({ error: e?.message || 'خطا در انتشار ویدیو' }, 500);
     }
 });
 

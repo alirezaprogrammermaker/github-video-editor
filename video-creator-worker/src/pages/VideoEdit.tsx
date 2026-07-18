@@ -286,13 +286,15 @@ export function VideoEdit() {
                             <Tag color={
                                 video.status === VideoStatus.READY ? 'green' :
                                 video.status === VideoStatus.BUILDING ? 'processing' :
-                                video.status === VideoStatus.NOW ? 'cyan' :
-                                video.status === VideoStatus.SCHEDULED ? 'orange' : 'default'
+                                video.status === VideoStatus.READY_FOR_PUBLISH ? 'cyan' :
+                                video.status === VideoStatus.FAILED ? 'red' :
+                                video.status === VideoStatus.PUBLISHED ? 'purple' : 'default'
                             }>
                                 {video.status === VideoStatus.READY ? 'آماده' :
                                  video.status === VideoStatus.BUILDING ? 'در حال ساخت' :
-                                 video.status === VideoStatus.NOW ? 'منتشر شده' :
-                                 video.status === VideoStatus.SCHEDULED ? 'زمانبندی شده' : 'در انتظار'}
+                                 video.status === VideoStatus.READY_FOR_PUBLISH ? 'آماده انتشار' :
+                                 video.status === VideoStatus.FAILED ? 'ناموفق' :
+                                 video.status === VideoStatus.PUBLISHED ? 'منتشر شده' : 'در انتظار'}
                             </Tag>
                         </Space>
 
@@ -392,8 +394,7 @@ export function VideoEdit() {
                                 options={[
                                     { label: 'در انتظار', value: VideoStatus.PENDING },
                                     { label: 'آماده', value: VideoStatus.READY },
-                                    { label: 'منتشر شده', value: VideoStatus.NOW },
-                                    { label: 'زمانبندی شده', value: VideoStatus.SCHEDULED },
+                                    { label: 'منتشر شده', value: VideoStatus.PUBLISHED },
                                 ]}
                             />
                         </Form.Item>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Table, Button, Tag, Popconfirm, message, Space, Avatar, Typography } from 'antd';
-import { EditOutlined, DeleteOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, PlayCircleOutlined, SendOutlined } from '@ant-design/icons';
 import { VideoStatus } from '../constants/video-status';
 import type { ColumnsType } from 'antd/es/table';
 
@@ -51,6 +51,17 @@ export function Videos() {
         setVideos((prev) => prev.filter((v) => v.shortcode !== shortcode));
     }
 
+    async function handlePublishNow(shortcode: string) {
+        const res = await fetch(`/api/videos/${shortcode}/publish`, {
+            method: 'POST',
+            credentials: 'include',
+        });
+        const data = await res.json();
+        if (!res.ok) return message.error(data.error);
+        message.success('ویدیو منتشر شد');
+        fetchVideos();
+    }
+
     const columns: ColumnsType<Video> = [
         {
             title: 'ویدیو',
@@ -89,8 +100,6 @@ export function Videos() {
                     [VideoStatus.READY]: { color: 'green', label: 'آماده' },
                     [VideoStatus.READY_FOR_PUBLISH]: { color: 'cyan', label: 'آماده انتشار' },
                     [VideoStatus.PUBLISHED]: { color: 'purple', label: 'منتشر شده' },
-                    [VideoStatus.NOW]: { color: 'green', label: 'منتشر شده' },
-                    [VideoStatus.SCHEDULED]: { color: 'orange', label: 'زمانبندی شده' },
                     [VideoStatus.FAILED]: { color: 'red', label: 'ناموفق' },
                 };
                 const s = statusMap[status] || { color: 'default', label: status };
@@ -118,6 +127,11 @@ export function Videos() {
                         icon={<EditOutlined />}
                         onClick={() => navigate(`/videos/edit/${record.shortcode}`)}
                     />
+                    {record.status === VideoStatus.READY_FOR_PUBLISH && (
+                        <Popconfirm title="همین الان منتشر شود؟" onConfirm={() => handlePublishNow(record.shortcode)}>
+                            <Button type="text" icon={<SendOutlined />} style={{ color: '#1677ff' }} />
+                        </Popconfirm>
+                    )}
                     <Popconfirm title="حذف شود؟" onConfirm={() => handleDelete(record.shortcode)}>
                         <Button type="text" danger icon={<DeleteOutlined />} />
                     </Popconfirm>
