@@ -19,6 +19,12 @@ on:
       watermark_text:
         description: "Watermark text"
         required: false
+      webhook_url:
+        description: "Webhook URL to notify when build completes (optional)"
+        required: false
+      shortcode:
+        description: "Video shortcode for webhook callback (optional)"
+        required: false
       output_format:
         description: "Output format: mp4 (direct download) or zip (artifact)"
         required: false
@@ -144,3 +150,28 @@ jobs:
         name: edited-video
         path: outputs/output.mp4
         retention-days: 7
+
+    - name: Notify webhook (success)
+      if: success() && github.event.inputs.webhook_url != ''
+      env:
+        WEBHOOK_URL: ${{ github.event.inputs.webhook_url }}
+        SHORTCODE: ${{ github.event.inputs.shortcode }}
+        TAG: video-${{ github.run_number }}
+        OUTPUT_URL: https://github.com/${{ github.repository }}/releases/download/video-${{ github.run_number }}/output.mp4
+      run: |
+        echo "Notifying webhook: $WEBHOOK_URL"
+        curl -s -X POST "$WEBHOOK_URL" \
+          -H "Content-Type: application/json" \
+          -d "{\"shortcode\":\"$SHORTCODE\",\"status\":\"success\",\"tag\":\"$TAG\",\"output_url\":\"$OUTPUT_URL\",\"run_number\":\"${{ github.run_number }}\"}" || true
+
+    - name: Notify webhook (failure)
+      if: failure() && github.event.inputs.webhook_url != ''
+      env:
+        WEBHOOK_URL: ${{ github.event.inputs.webhook_url }}
+        SHORTCODE: ${{ github.event.inputs.shortcode }}
+        TAG: video-${{ github.run_number }}
+      run: |
+        echo "Notifying webhook of failure: $WEBHOOK_URL"
+        curl -s -X POST "$WEBHOOK_URL" \
+          -H "Content-Type: application/json" \
+          -d "{\"shortcode\":\"$SHORTCODE\",\"status\":\"failure\",\"tag\":\"$TAG\",\"error\":\"Workflow failed\"}" || true
