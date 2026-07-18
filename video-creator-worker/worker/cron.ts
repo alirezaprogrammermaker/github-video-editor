@@ -61,7 +61,7 @@ async function processReadyVideos(db: D1Database) {
 
             const inputs: Record<string, string> = {
                 video_url: video.video_url,
-                template: video.template_id || 'default',
+                template: (video.template_id || 'default').replace(/^tpl_/, ''),
                 webhook_url: 'https://video-creator-worker.social-panel.workers.dev/api/callback/workflow',
                 shortcode: video.shortcode,
             };
