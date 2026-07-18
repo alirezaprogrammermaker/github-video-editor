@@ -20,6 +20,10 @@ export interface InstagramVideoRow {
     scheduled_at: string | null;
     published_at: string | null;
     raw_data: string | null;
+    ai_analysis: string | null;
+    ai_title: string | null;
+    ai_caption: string | null;
+    ai_hashtags: string | null;
     created_at?: string;
     updated_at?: string;
 }
@@ -93,6 +97,20 @@ export class InstagramVideo extends Model<InstagramVideoRow> {
         };
         if (scheduledAt) updates.scheduled_at = scheduledAt;
         if (status === VideoStatus.PUBLISHED) updates.published_at = new Date().toISOString();
+        await this.update(id, updates);
+    }
+
+    static async updateAiAnalysis(id: string, data: {
+        ai_analysis?: string;
+        ai_title?: string;
+        ai_caption?: string;
+        ai_hashtags?: string;
+    }) {
+        const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+        if (data.ai_analysis !== undefined) updates.ai_analysis = data.ai_analysis;
+        if (data.ai_title !== undefined) updates.ai_title = data.ai_title;
+        if (data.ai_caption !== undefined) updates.ai_caption = data.ai_caption;
+        if (data.ai_hashtags !== undefined) updates.ai_hashtags = data.ai_hashtags;
         await this.update(id, updates);
     }
 }

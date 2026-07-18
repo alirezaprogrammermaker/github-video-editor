@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Table, Button, Popconfirm, Select, Tag, message, Space, Modal, Input, InputNumber, Form, Radio } from 'antd';
 import { DeleteOutlined, StopOutlined, CheckCircleOutlined, SendOutlined, SearchOutlined } from '@ant-design/icons';
+import { PageHeader } from '../components/PageHeader';
 import type { ColumnsType } from 'antd/es/table';
 
 interface TelegramUser {
@@ -247,24 +248,19 @@ export function TelegramUsers() {
 
     return (
         <div>
-            <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: 16,
-                flexWrap: 'wrap',
-                gap: 8,
-            }}>
-                <h2 style={{ margin: 0 }}>کاربران تلگرام</h2>
-                <Input
-                    placeholder="جستجو..."
-                    prefix={<SearchOutlined />}
-                    value={searchText}
-                    onChange={(e) => setSearchText(e.target.value)}
-                    style={{ maxWidth: 350, flex: '1 1 200px' }}
-                    allowClear
-                />
-            </div>
+            <PageHeader
+                title="کاربران تلگرام"
+                extra={
+                    <Input
+                        placeholder="جستجو..."
+                        prefix={<SearchOutlined />}
+                        value={searchText}
+                        onChange={(e) => setSearchText(e.target.value)}
+                        style={{ maxWidth: 350, flex: '1 1 200px' }}
+                        allowClear
+                    />
+                }
+            />
             <Table
                 dataSource={filteredUsers}
                 columns={columns}

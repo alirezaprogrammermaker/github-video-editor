@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Table, Button, Input, Popconfirm, Form, message, Modal, Tag } from 'antd';
 import { DeleteOutlined, PlusOutlined, EditOutlined, KeyOutlined } from '@ant-design/icons';
+import { PageHeader } from '../components/PageHeader';
 import type { ColumnsType } from 'antd/es/table';
 
 interface ZernioAccount {
@@ -118,19 +119,14 @@ export function ZernioAccounts() {
 
     return (
         <div>
-            <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: 16,
-                flexWrap: 'wrap',
-                gap: 8,
-            }}>
-                <h2 style={{ margin: 0 }}>اکانت‌های Zernio</h2>
-                <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-                    اکانت جدید
-                </Button>
-            </div>
+            <PageHeader
+                title="اکانت‌های Zernio"
+                extra={
+                    <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+                        اکانت جدید
+                    </Button>
+                }
+            />
 
             <Table
                 dataSource={accounts}

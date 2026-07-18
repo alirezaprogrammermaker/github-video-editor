@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Table, Button, Select, Popconfirm, Form, message, Modal, Tag, Avatar, Space, Input, List, Typography, Divider } from 'antd';
 import { DeleteOutlined, SyncOutlined, EditOutlined, UserAddOutlined, CrownOutlined, UserOutlined } from '@ant-design/icons';
+import { PageHeader } from '../components/PageHeader';
 import type { ColumnsType } from 'antd/es/table';
 import { ScheduleManager } from '../components/ScheduleManager';
 
@@ -292,35 +293,30 @@ export function ZernioSocialAccounts() {
 
     return (
         <div>
-            <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: 16,
-                flexWrap: 'wrap',
-                gap: 8,
-            }}>
-                <h2 style={{ margin: 0 }}>حساب‌های شبکه اجتماعی</h2>
-                <Space wrap>
-                    <Select
-                        placeholder="فیلتر بر اساس اکانت زرنیو"
-                        style={{ minWidth: 200, flex: '1 1 200px' }}
-                        allowClear
-                        value={selectedZernio}
-                        onChange={(v) => setSelectedZernio(v || null)}
-                        options={zernioAccounts.map(a => ({ label: a.name, value: a.id }))}
-                    />
-                    <Button
-                        type="primary"
-                        icon={<SyncOutlined spin={syncLoading} />}
-                        onClick={handleSync}
-                        loading={syncLoading}
-                        disabled={!selectedZernio}
-                    >
-                        بروزرسانی از زرنیو
-                    </Button>
-                </Space>
-            </div>
+            <PageHeader
+                title="حساب‌های شبکه اجتماعی"
+                extra={
+                    <Space wrap>
+                        <Select
+                            placeholder="فیلتر بر اساس اکانت زرنیو"
+                            style={{ minWidth: 200, flex: '1 1 200px' }}
+                            allowClear
+                            value={selectedZernio}
+                            onChange={(v) => setSelectedZernio(v || null)}
+                            options={zernioAccounts.map(a => ({ label: a.name, value: a.id }))}
+                        />
+                        <Button
+                            type="primary"
+                            icon={<SyncOutlined spin={syncLoading} />}
+                            onClick={handleSync}
+                            loading={syncLoading}
+                            disabled={!selectedZernio}
+                        >
+                            بروزرسانی از زرنیو
+                        </Button>
+                    </Space>
+                }
+            />
 
             <Table
                 dataSource={socialAccounts}

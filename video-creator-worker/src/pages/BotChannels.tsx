@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Table, Button, Input, Switch, Popconfirm, Form, message } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import { PageHeader } from '../components/PageHeader';
 import type { ColumnsType } from 'antd/es/table';
 
 interface BotChannel {
@@ -108,24 +109,21 @@ export function BotChannels() {
 
     return (
         <div>
-            <h2 style={{ marginBottom: 16 }}>کانال‌های ربات</h2>
-
-            <div style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 8,
-                marginBottom: 16,
-                alignItems: 'flex-start',
-            }}>
-                <Form form={form} layout="inline" style={{ flex: '1 1 250px' }}>
-                    <Form.Item name="channel_username" rules={[{ required: true, message: 'نام کاربری الزامی' }]} style={{ flex: '1 1 200px', margin: 0 }}>
-                        <Input placeholder="@channel_username" onPressEnter={handleAdd} />
-                    </Form.Item>
-                </Form>
-                <Button type="primary" icon={<PlusOutlined />} loading={adding} onClick={handleAdd}>
-                    افزودن
-                </Button>
-            </div>
+            <PageHeader
+                title="کانال‌های ربات"
+                extra={
+                    <>
+                        <Form form={form} layout="inline" style={{ flex: '1 1 250px' }}>
+                            <Form.Item name="channel_username" rules={[{ required: true, message: 'نام کاربری الزامی' }]} style={{ flex: '1 1 200px', margin: 0 }}>
+                                <Input placeholder="@channel_username" onPressEnter={handleAdd} />
+                            </Form.Item>
+                        </Form>
+                        <Button type="primary" icon={<PlusOutlined />} loading={adding} onClick={handleAdd}>
+                            افزودن
+                        </Button>
+                    </>
+                }
+            />
 
             <Table
                 dataSource={channels}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Row, Col, Card, Statistic, Spin } from 'antd';
 import { TeamOutlined, CalendarOutlined, TrophyOutlined } from '@ant-design/icons';
 import { Line, Column } from '@ant-design/charts';
+import { PageHeader } from '../components/PageHeader';
 
 interface Stats {
     total: number;
@@ -113,33 +114,29 @@ export function DashboardHome() {
         animation: true,
     };
 
+    const dayFilter = [7, 14, 30, 90].map((d) => (
+        <a
+            key={d}
+            onClick={() => setDays(d)}
+            style={{
+                color: days === d ? '#4f46e5' : '#666',
+                fontWeight: days === d ? 'bold' : 'normal',
+                cursor: 'pointer',
+            }}
+        >
+            {d} روز
+        </a>
+    ));
+
+    const emptyChart = (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#999' }}>
+            داده‌ای موجود نیست
+        </div>
+    );
+
     return (
         <div>
-            <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: 24,
-                flexWrap: 'wrap',
-                gap: 8,
-            }}>
-                <h2 style={{ margin: 0 }}>داشبورد آمار</h2>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {[7, 14, 30, 90].map((d) => (
-                        <a
-                            key={d}
-                            onClick={() => setDays(d)}
-                            style={{
-                                color: days === d ? '#4f46e5' : '#666',
-                                fontWeight: days === d ? 'bold' : 'normal',
-                                cursor: 'pointer',
-                            }}
-                        >
-                            {d} روز
-                        </a>
-                    ))}
-                </div>
-            </div>
+            <PageHeader title="داشبورد آمار" extra={dayFilter} />
 
             <Spin spinning={loading}>
                 <Row gutter={[16, 16]}>
@@ -192,31 +189,14 @@ export function DashboardHome() {
                         title="روند ثبت‌نام کاربران"
                         bordered={false}
                         style={{ borderRadius: 12 }}
-                        extra={
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                {[7, 14, 30, 90].map((d) => (
-                                    <a
-                                        key={d}
-                                        onClick={() => setDays(d)}
-                                        style={{
-                                            color: days === d ? '#4f46e5' : '#666',
-                                            fontWeight: days === d ? 'bold' : 'normal',
-                                        }}
-                                    >
-                                        {d} روز
-                                    </a>
-                                ))}
-                            </div>
-                        }
+                        extra={<div style={{ display: 'flex', gap: 8 }}>{dayFilter}</div>}
                     >
                         <Spin spinning={chartLoading}>
                             <div style={{ height: 350 }}>
                                 {dailyStats.length > 0 ? (
                                     <Line {...lineConfig} />
                                 ) : (
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#999' }}>
-                                        داده‌ای موجود نیست
-                                    </div>
+                                    emptyChart
                                 )}
                             </div>
                         </Spin>
@@ -233,9 +213,7 @@ export function DashboardHome() {
                                 {dailyStats.length > 0 ? (
                                     <Column {...columnConfig} />
                                 ) : (
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#999' }}>
-                                        داده‌ای موجود نیست
-                                    </div>
+                                    emptyChart
                                 )}
                             </div>
                         </Spin>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Table, Button, Tag, Popconfirm, message, Space, Avatar, Typography } from 'antd';
 import { EditOutlined, DeleteOutlined, PlayCircleOutlined, SendOutlined } from '@ant-design/icons';
 import { VideoStatus } from '../constants/video-status';
+import { PageHeader } from '../components/PageHeader';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Text } = Typography;
@@ -142,17 +143,7 @@ export function Videos() {
 
     return (
         <div>
-            <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: 16,
-                flexWrap: 'wrap',
-                gap: 8,
-            }}>
-                <h2 style={{ margin: 0 }}>ویدیوها</h2>
-                <Tag>{videos.length} ویدیو</Tag>
-            </div>
+            <PageHeader title="ویدیوها" extra={<Tag>{videos.length} ویدیو</Tag>} />
 
             <Table
                 dataSource={videos}

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Form, Input, Button, Select, message, Card, Spin, Space, Typography, Divider, Tag, Modal } from 'antd';
-import { SaveOutlined, ArrowRightOutlined, PlayCircleOutlined, ClearOutlined, RocketOutlined, ReloadOutlined, DeleteOutlined } from '@ant-design/icons';
+import { SaveOutlined, ArrowRightOutlined, PlayCircleOutlined, ClearOutlined, RocketOutlined, ReloadOutlined, DeleteOutlined, RobotOutlined } from '@ant-design/icons';
 import { VideoStatus } from '../constants/video-status';
+import { PageHeader } from '../components/PageHeader';
 
-const { Title, Text, Paragraph } = Typography;
+const { Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
 interface VideoData {
@@ -21,6 +22,10 @@ interface VideoData {
     output_url: string | null;
     build_log: string | null;
     status: string;
+    ai_analysis: string | null;
+    ai_title: string | null;
+    ai_caption: string | null;
+    ai_hashtags: string | null;
     created_at: string;
 }
 
@@ -49,6 +54,7 @@ export function VideoEdit() {
     const [saving, setSaving] = useState(false);
     const [building, setBuilding] = useState(false);
     const [deletingRelease, setDeletingRelease] = useState(false);
+    const [analyzing, setAnalyzing] = useState(false);
     const [playerOpen, setPlayerOpen] = useState(false);
     const [playerUrl, setPlayerUrl] = useState<string>('');
     const [form] = Form.useForm();
@@ -235,6 +241,57 @@ export function VideoEdit() {
         }
     }
 
+    async function handleAnalyze() {
+        if (!video?.proxied_url) {
+            message.error('لینک ویدیو موجود نیست');
+            return;
+        }
+        try {
+            setAnalyzing(true);
+            const res = await fetch(`/api/videos/${shortcode}/analyze`, {
+                method: 'POST',
+                credentials: 'include',
+            });
+            const data = await res.json();
+            if (!res.ok) return message.error(data.error);
+            message.success('تحلیل ویدیو شروع شد. نتایج به زودی نمایش داده می‌شود...');
+            // Poll for results
+            pollForAiResults();
+        } catch {
+            message.error('خطا در شروع تحلیل');
+        } finally {
+            setAnalyzing(false);
+        }
+    }
+
+    async function pollForAiResults() {
+        let attempts = 0;
+        const maxAttempts = 30; // 30 * 3s = 90s max wait
+        const interval = setInterval(async () => {
+            attempts++;
+            if (attempts >= maxAttempts) {
+                clearInterval(interval);
+                return;
+            }
+            try {
+                const res = await fetch(`/api/videos/${shortcode}`, { credentials: 'include' });
+                const data = await res.json();
+                if (data.ai_title || data.ai_caption) {
+                    clearInterval(interval);
+                    setVideo(data);
+                    message.success('تحلیل ویدیو کامل شد!');
+                }
+            } catch {}
+        }, 3000);
+    }
+
+    function handleApplyAiCaption() {
+        if (video?.ai_caption) {
+            form.setFieldValue('user_caption', video.ai_caption);
+            message.success('کپشن AI اعمال شد');
+        }
+    }
+
     async function handleDeleteRelease() {
         Modal.confirm({
             title: 'حذف Release و Tag',
@@ -270,12 +327,14 @@ export function VideoEdit() {
 
     return (
         <div style={{ padding: '0 16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-                <Title level={3} style={{ margin: 0 }}>ویرایش ویدیو</Title>
-                <Button icon={<ArrowRightOutlined />} onClick={() => navigate('/videos')}>
-                    بازگشت به لیست
-                </Button>
-            </div>
+            <PageHeader
+                title="ویرایش ویدیو"
+                extra={
+                    <Button icon={<ArrowRightOutlined />} onClick={() => navigate('/videos')}>
+                        بازگشت به لیست
+                    </Button>
+                }
+            />
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
                 {/* Video Preview */}
@@ -330,6 +389,46 @@ export function VideoEdit() {
                                 <Text type="secondary">لاگ ساخت:</Text>
                                 <Paragraph ellipsis={{ rows: 1, expandable: true }} style={{ margin: 0, fontSize: 12 }}>
                                     {video.build_log}
+                                </Paragraph>
+                            </div>
+                        )}
+
+                        {/* AI Analysis Results */}
+                        {(video.ai_title || video.ai_caption || video.ai_hashtags || video.ai_analysis === 'در حال تحلیل...') && (
+                            <Divider style={{ margin: '12px 0' }} />
+                        )}
+                        {video.ai_analysis === 'در حال تحلیل...' && (
+                            <div style={{ textAlign: 'center', padding: 12 }}>
+                                <Spin size="small" />
+                                <Text type="secondary" style={{ marginLeft: 8 }}>در حال تحلیل با هوش مصنوعی...</Text>
+                            </div>
+                        )}
+                        {video.ai_title && (
+                            <div>
+                                <Text type="secondary">عنوان AI:</Text>
+                                <Paragraph style={{ margin: 0, fontWeight: 500 }}>{video.ai_title}</Paragraph>
+                            </div>
+                        )}
+                        {video.ai_caption && (
+                            <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Text type="secondary">کپشن AI:</Text>
+                                    <Button type="link" size="small" onClick={handleApplyAiCaption}>
+                                        اعمال کپشن
+                                    </Button>
+                                </div>
+                                <Paragraph ellipsis={{ rows: 3, expandable: true }} style={{ margin: 0 }}>
+                                    {video.ai_caption}
+                                </Paragraph>
+                            </div>
+                        )}
+                        {video.ai_hashtags && (
+                            <div>
+                                <Text type="secondary">هشتگ‌های AI:</Text>
+                                <Paragraph style={{ margin: 0 }}>
+                                    {video.ai_hashtags.split(' ').map((tag, i) => (
+                                        <Tag key={i} style={{ margin: '2px' }}>{tag}</Tag>
+                                    ))}
                                 </Paragraph>
                             </div>
                         )}
@@ -426,6 +525,17 @@ export function VideoEdit() {
                                     onClick={handleCheckStatus}
                                 >
                                     بروزرسانی وضعیت
+                                </Button>
+                            )}
+                            {video.proxied_url && (
+                                <Button
+                                    icon={<RobotOutlined />}
+                                    onClick={handleAnalyze}
+                                    loading={analyzing}
+                                    disabled={video.ai_analysis === 'در حال تحلیل...'}
+                                    style={{ background: '#722ed1', borderColor: '#722ed1', color: '#fff' }}
+                                >
+                                    AI تولید کپشن
                                 </Button>
                             )}
                             {video.proxied_url && (

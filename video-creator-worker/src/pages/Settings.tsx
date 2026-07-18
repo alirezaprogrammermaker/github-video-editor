@@ -7,6 +7,7 @@ import {
     SaveOutlined, LinkOutlined, DeleteOutlined, InfoCircleOutlined,
     PlusOutlined, MinusCircleOutlined, GithubOutlined,
 } from '@ant-design/icons';
+import { PageHeader } from '../components/PageHeader';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Text } = Typography;
@@ -221,7 +222,7 @@ export function Settings() {
 
     return (
         <div>
-            <h2 style={{ marginBottom: 24 }}>تنظیمات</h2>
+            <PageHeader title="تنظیمات" />
 
             <Row gutter={[24, 24]}>
                 {/* Left Column */}

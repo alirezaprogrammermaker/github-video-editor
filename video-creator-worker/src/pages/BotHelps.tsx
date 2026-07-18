@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Table, Button, Input, InputNumber, Popconfirm, Form, message, Modal } from 'antd';
 import { DeleteOutlined, PlusOutlined, EditOutlined } from '@ant-design/icons';
+import { PageHeader } from '../components/PageHeader';
 import type { ColumnsType } from 'antd/es/table';
 
 interface BotHelp {
@@ -132,19 +133,14 @@ export function BotHelps() {
 
     return (
         <div>
-            <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: 16,
-                flexWrap: 'wrap',
-                gap: 8,
-            }}>
-                <h2 style={{ margin: 0 }}>راهنمای ربات</h2>
-                <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>
-                    راهنمای جدید
-                </Button>
-            </div>
+            <PageHeader
+                title="راهنمای ربات"
+                extra={
+                    <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>
+                        راهنمای جدید
+                    </Button>
+                }
+            />
 
             <Table
                 dataSource={helps}

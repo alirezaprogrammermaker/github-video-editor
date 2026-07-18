@@ -292,6 +292,62 @@ videos.post('/:shortcode/publish', async (c) => {
     }
 });
 
+// --- AI Analyze Video ---
+
+videos.post('/:shortcode/analyze', async (c) => {
+    try {
+        const shortcode = c.req.param('shortcode');
+        InstagramVideo.use(c.env.DB);
+        const video = await InstagramVideo.findByShortcode(shortcode);
+        if (!video) return c.json({ error: 'ویدیو یافت نشد' }, 404);
+
+        Setting.use(c.env.DB);
+        const repo = await Setting.get('github_repo');
+        const token = await Setting.get('github_token');
+
+        if (!repo || !token) {
+            return c.json({ error: 'GitHub settings not configured' }, 400);
+        }
+
+        // Trigger analyze-video workflow
+        const webhookUrl = `https://video-creator-worker.social-panel.workers.dev/api/callback/analyze`;
+        const url = `https://api.github.com/repos/${repo}/actions/workflows/analyze-video.yml/dispatches`;
+        const branch = await Setting.get('github_branch') || 'main';
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/vnd.github+json',
+                'X-GitHub-Api-Version': '2022-11-28',
+                'Content-Type': 'application/json; charset=utf-8',
+                'User-Agent': 'VideoCreatorWorker',
+            },
+            body: JSON.stringify({
+                ref: branch,
+                inputs: {
+                    video_url: video.proxied_url,
+                    webhook_url: webhookUrl,
+                    shortcode: video.shortcode,
+                },
+            }),
+        });
+
+        if (res.status === 204) {
+            await InstagramVideo.update(video.id, {
+                ai_analysis: 'در حال تحلیل...',
+                updated_at: nowTehran(),
+            });
+            return c.json({ ok: true, message: 'تحلیل ویدیو شروع شد' });
+        } else {
+            const errorText = await res.text();
+            return c.json({ error: `GitHub API error ${res.status}: ${errorText.slice(0, 200)}` }, 500);
+        }
+    } catch (e: any) {
+        return c.json({ error: e?.message || 'خطا در شروع تحلیل' }, 500);
+    }
+});
+
 // --- Workflow Trigger ---
 
 async function triggerVideoWorkflow(db: D1Database, video: InstagramVideoRow, templateData: Record<string, string>, templateId?: string | null) {

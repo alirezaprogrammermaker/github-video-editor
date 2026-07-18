@@ -7,6 +7,7 @@ import {
     SaveOutlined, RobotOutlined, SendOutlined, BarChartOutlined,
     DatabaseOutlined, SafetyOutlined, ThunderboltOutlined,
 } from '@ant-design/icons';
+import { PageHeader } from '../components/PageHeader';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Text } = Typography;
@@ -325,12 +326,7 @@ export function AISettings() {
 
     return (
         <div>
-            <h2 style={{ marginBottom: 24 }}>
-                <Space>
-                    <RobotOutlined />
-                    <span>تنظیمات هوش مصنوعی</span>
-                </Space>
-            </h2>
+            <PageHeader title="تنظیمات هوش مصنوعی" extra={<RobotOutlined />} />
 
             <Row gutter={[24, 24]}>
                 {/* Admin AI Settings */}

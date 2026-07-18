@@ -1,0 +1,95 @@
+name: Analyze Video
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_url:
+        description: "URL of video to analyze"
+        required: true
+      webhook_url:
+        description: "Webhook URL to send results back"
+        required: false
+      shortcode:
+        description: "Video shortcode identifier"
+        required: false
+
+env:
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: "utf-8"
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+    - name: Install FFmpeg
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+
+    - name: Download video
+      env:
+        VIDEO_URL: ${{ github.event.inputs.video_url }}
+      run: |
+        echo "Downloading video from: $VIDEO_URL"
+        curl -L -o video.mp4 "$VIDEO_URL"
+        echo "Downloaded video size: $(du -h video.mp4 | cut -f1)"
+
+    - name: Extract 5 key frames
+      run: |
+        echo "Extracting 5 key frames..."
+        ffmpeg -i video.mp4 -vf "fps=1/4" -frames:v 5 frame_%d.jpg -y
+        echo "Extracted frames:"
+        ls -la frame_*.jpg
+
+    - name: Extract audio
+      run: |
+        echo "Extracting audio..."
+        ffmpeg -i video.mp4 -vn -acodec pcm_s16le -ar 16000 -ac 1 audio.wav -y
+        echo "Audio extracted:"
+        ls -la audio.wav
+
+    - name: Get video info
+      run: |
+        echo "Getting video info..."
+        DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 video.mp4)
+        echo "Video duration: $DURATION seconds"
+
+    - name: Send results to webhook
+      if: github.event.inputs.webhook_url
+      env:
+        WEBHOOK_URL: ${{ github.event.inputs.webhook_url }}
+        SHORTCODE: ${{ github.event.inputs.shortcode }}
+      run: |
+        echo "Encoding frames and audio to base64..."
+
+        # Encode frames to base64
+        FRAME1=$(base64 -w 0 frame_1.jpg)
+        FRAME2=$(base64 -w 0 frame_2.jpg)
+        FRAME3=$(base64 -w 0 frame_3.jpg)
+        FRAME4=$(base64 -w 0 frame_4.jpg)
+        FRAME5=$(base64 -w 0 frame_5.jpg)
+
+        # Encode audio to base64
+        AUDIO=$(base64 -w 0 audio.wav)
+
+        # Get audio duration
+        AUDIO_DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 audio.wav)
+
+        # Create JSON payload
+        cat > payload.json << EOF
+        {
+          "shortcode": "$SHORTCODE",
+          "frames": ["$FRAME1", "$FRAME2", "$FRAME3", "$FRAME4", "$FRAME5"],
+          "audio": "$AUDIO",
+          "audio_duration": $AUDIO_DURATION
+        }
+        EOF
+
+        echo "Sending to webhook: $WEBHOOK_URL"
+        curl -s -X POST "$WEBHOOK_URL" \
+          -H "Content-Type: application/json" \
+          -d @payload.json || true
+        echo "Webhook sent successfully"

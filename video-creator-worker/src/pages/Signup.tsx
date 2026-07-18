@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { Form, Input, Button, Card, Typography, Alert, Flex } from 'antd';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const { Title, Text } = Typography;
 
 export function Signup() {
     const { user, signup } = useAuth();
+    const location = useLocation();
+    const from = (location.state as { from?: string })?.from || '/';
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
 
-    if (user) return <Navigate to="/" replace />;
+    if (user) return <Navigate to={from} replace />;
 
     async function onFinish(values: { email: string; password: string }) {
         setError('');

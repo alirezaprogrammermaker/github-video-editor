@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Table, Button, Popconfirm, Tag, Select, Descriptions, Modal, message } from 'antd';
 import { DeleteOutlined, StopOutlined } from '@ant-design/icons';
+import { PageHeader } from '../components/PageHeader';
 import type { ColumnsType } from 'antd/es/table';
 
 interface Session {
@@ -125,21 +126,17 @@ export function TelegramUserSessions() {
 
     return (
         <div>
-            <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                marginBottom: 16,
-                flexWrap: 'wrap',
-            }}>
-                <h2 style={{ margin: 0 }}>نشست‌های تلگرام</h2>
-                <Select
-                    value={filter}
-                    onChange={handleFilterChange}
-                    options={statusOptions}
-                    style={{ width: 140 }}
-                />
-            </div>
+            <PageHeader
+                title="نشست‌های تلگرام"
+                extra={
+                    <Select
+                        value={filter}
+                        onChange={handleFilterChange}
+                        options={statusOptions}
+                        style={{ width: 140 }}
+                    />
+                }
+            />
             <Table
                 dataSource={sessions}
                 columns={columns}
