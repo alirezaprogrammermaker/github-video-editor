@@ -6,19 +6,15 @@ on:
       video_url:
         description: "URL of video to edit (leave empty to use bundled video.mp4)"
         required: false
-        default: ""
       static_text:
         description: "Static text for first phase (0-2s)"
         required: false
-        default: "پدر و دوازده فرزند"
       marquee_text:
         description: "Marquee text (2s-end)"
         required: false
-        default: "برای خرید فالوور لایک ویو به @insta_shop پیام بدید"
       watermark_text:
         description: "Watermark text"
         required: false
-        default: "@insta_shop"
       output_format:
         description: "Output format: mp4 (direct download) or zip (artifact)"
         required: false
