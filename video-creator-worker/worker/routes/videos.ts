@@ -242,7 +242,7 @@ async function triggerVideoWorkflow(db: D1Database, video: InstagramVideoRow, te
 
     const inputs: Record<string, string> = {
         video_url: video.proxied_url,
-        template: (templateId || 'default').replace(/^tpl_/, ''),
+        template: templateId || 'default',
         webhook_url: webhookUrl,
         shortcode: video.shortcode,
     };
