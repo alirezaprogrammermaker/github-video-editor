@@ -26,10 +26,10 @@ jobs:
           curl -L -o video.mp4 "$VIDEO_URL"
           SIZE=$(stat -c%s video.mp4 2>/dev/null || echo 0)
           if [ "$SIZE" -lt 10000 ]; then
+            echo "Direct download failed, using latest release..."
             REPO=$(echo "$VIDEO_URL" | cut -d/ -f4-5)
-            TAG=$(echo "$VIDEO_URL" | sed 's|.*/releases/download/||' | cut -d/ -f1)
-            JSON=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/$REPO/releases/tags/$TAG")
-            URL=$(echo "$JSON" | python3 -c "import sys,json;print(json.load(sys.stdin)['assets'][0]['url'])")
+            JSON=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/$REPO/releases?per_page=1")
+            URL=$(echo "$JSON" | python3 -c "import sys,json;r=json.load(sys.stdin);print(r[0]['assets'][0]['url'])")
             curl -L -H "Accept: application/octet-stream" -H "Authorization: Bearer $GH_TOKEN" -o video.mp4 "$URL"
           fi
           echo "Size: $(du -h video.mp4 | cut -f1)"
