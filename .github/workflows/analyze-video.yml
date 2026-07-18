@@ -37,12 +37,18 @@ jobs:
         curl -L -o video.mp4 "$VIDEO_URL"
         echo "Downloaded video size: $(du -h video.mp4 | cut -f1)"
 
-    - name: Extract 5 key frames
+    - name: Extract key frames
       run: |
-        echo "Extracting 5 key frames..."
-        ffmpeg -i video.mp4 -vf "fps=1/4" -frames:v 5 frame_%d.jpg -y
+        echo "Extracting key frames..."
+        DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 video.mp4)
+        echo "Video duration: $DURATION seconds"
+        INTERVAL=$(echo "$DURATION / 5" | bc -l)
+        echo "Frame interval: $INTERVAL seconds"
+        ffmpeg -i video.mp4 -vf "fps=1/$INTERVAL" -frames:v 5 frame_%d.jpg -y
         echo "Extracted frames:"
         ls -la frame_*.jpg
+        FRAME_COUNT=$(ls frame_*.jpg 2>/dev/null | wc -l)
+        echo "Actual frame count: $FRAME_COUNT"
 
     - name: Extract audio
       run: |
@@ -65,12 +71,21 @@ jobs:
       run: |
         echo "Encoding frames and audio to base64..."
 
-        # Encode frames to base64
-        FRAME1=$(base64 -w 0 frame_1.jpg)
-        FRAME2=$(base64 -w 0 frame_2.jpg)
-        FRAME3=$(base64 -w 0 frame_3.jpg)
-        FRAME4=$(base64 -w 0 frame_4.jpg)
-        FRAME5=$(base64 -w 0 frame_5.jpg)
+        # Dynamically encode all available frames
+        FRAMES_JSON="["
+        FIRST=true
+        for f in frame_*.jpg; do
+          if [ -f "$f" ]; then
+            B64=$(base64 -w 0 "$f")
+            if [ "$FIRST" = true ]; then
+              FRAMES_JSON="$FRAMES_JSON\"$B64\""
+              FIRST=false
+            else
+              FRAMES_JSON="$FRAMES_JSON, \"$B64\""
+            fi
+          fi
+        done
+        FRAMES_JSON="$FRAMES_JSON]"
 
         # Encode audio to base64
         AUDIO=$(base64 -w 0 audio.wav)
@@ -78,15 +93,19 @@ jobs:
         # Get audio duration
         AUDIO_DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 audio.wav)
 
-        # Create JSON payload
-        cat > payload.json << EOF
-        {
-          "shortcode": "$SHORTCODE",
-          "frames": ["$FRAME1", "$FRAME2", "$FRAME3", "$FRAME4", "$FRAME5"],
-          "audio": "$AUDIO",
-          "audio_duration": $AUDIO_DURATION
-        }
-        EOF
+        # Build JSON using Python for proper escaping
+        python3 -c "
+import json, sys
+data = {
+    'shortcode': '$SHORTCODE',
+    'frames': json.loads('''$FRAMES_JSON'''),
+    'audio': '$AUDIO',
+    'audio_duration': float('$AUDIO_DURATION')
+}
+with open('payload.json', 'w') as f:
+    json.dump(data, f)
+print(f'Payload created with {len(data[\"frames\"])} frames')
+"
 
         echo "Sending to webhook: $WEBHOOK_URL"
         curl -s -X POST "$WEBHOOK_URL" \
