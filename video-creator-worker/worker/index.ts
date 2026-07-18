@@ -6,12 +6,26 @@ import aiRoutes from './routes/ai';
 import webhookRoutes from './routes/webhook';
 import videoRoutes from './routes/videos';
 import { InstagramVideo } from './db/InstagramVideo';
+import { ZernioSocialAccount } from './db/ZernioSocialAccount';
 import { nowTehran } from './timezone';
 import { VideoStatus } from './constants/video-status';
 import { handleScheduledEvent } from './cron';
 import type { Bindings, Variables } from './types';
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
+
+const LANGUAGE_NAMES: Record<string, string> = {
+    fa: 'Persian/Farsi',
+    en: 'English',
+    ar: 'Arabic',
+    tr: 'Turkish',
+    es: 'Spanish',
+    fr: 'French',
+    de: 'German',
+    ru: 'Russian',
+    hi: 'Hindi',
+    ur: 'Urdu',
+};
 
 // --- Analyze Callback (PUBLIC - receives analysis results) ---
 app.post('/api/callback/analyze', async (c) => {
@@ -32,6 +46,12 @@ app.post('/api/callback/analyze', async (c) => {
         InstagramVideo.use(c.env.DB);
         const video = await InstagramVideo.findByShortcode(body.shortcode);
         if (!video) return c.json({ error: 'ویدیو یافت نشد' }, 404);
+
+        // Get social account language
+        ZernioSocialAccount.use(c.env.DB);
+        const socialAccount = await ZernioSocialAccount.findByAccountId(video.social_account_id);
+        const language = socialAccount?.language || 'fa';
+        const languageName = LANGUAGE_NAMES[language] || 'Persian/Farsi';
 
         // Step 1: Transcribe audio with Whisper
         let transcription = '';
@@ -86,10 +106,12 @@ Video Analysis:
                 messages: [
                     {
                         role: 'system',
-                        content: `You are a social media content creator. Based on the video analysis below, generate:
-1. TITLE: A catchy title (max 10 words)
-2. CAPTION: An engaging caption (2-3 sentences, include emojis)
-3. HASHTAGS: 10-15 relevant and trending Instagram hashtags (Persian + English if applicable)
+                        content: `You are a social media content creator. Generate ALL content in ${languageName} language.
+
+Based on the video analysis below, generate:
+1. TITLE: A catchy title (max 10 words) in ${languageName}
+2. CAPTION: An engaging caption (2-3 sentences, include emojis) in ${languageName}
+3. HASHTAGS: 10-15 relevant and trending Instagram hashtags in ${languageName}
 
 Format your response exactly like this:
 TITLE: [your title]
@@ -119,7 +141,7 @@ HASHTAGS: [hashtags separated by spaces]`,
             console.error('[App] Generate error:', e?.message);
         }
 
-        // Step 4: Save to database
+        // Step 4: Save to database and auto-fill video fields
         await InstagramVideo.updateAiAnalysis(video.id, {
             ai_analysis: analysisContext,
             ai_title: aiResult.title,
@@ -127,7 +149,16 @@ HASHTAGS: [hashtags separated by spaces]`,
             ai_hashtags: aiResult.hashtags,
         });
 
-        console.log(`[App] Analysis complete for ${body.shortcode}:`, aiResult);
+        // Auto-fill video fields from AI results
+        const watermark = socialAccount?.username ? `@${socialAccount.username}` : null;
+        await InstagramVideo.update(video.id, {
+            user_caption: aiResult.caption || video.user_caption,
+            text_on_video: aiResult.title || video.text_on_video,
+            watermark: watermark || video.watermark,
+            updated_at: nowTehran(),
+        });
+
+        console.log(`[App] Analysis complete for ${body.shortcode}:`, { ...aiResult, language, watermark });
 
         return c.json({ ok: true, ...aiResult });
     } catch (e: any) {

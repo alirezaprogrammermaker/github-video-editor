@@ -1,0 +1,64 @@
+﻿name: Analyze Video
+
+on:
+  workflow_dispatch:
+    inputs:
+      video_url:
+        description: URL of video to analyze
+        required: true
+      webhook_url:
+        description: Webhook URL to send results back
+        required: false
+      shortcode:
+        description: Video shortcode identifier
+        required: false
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install FFmpeg
+      run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+    - name: Download video
+      env:
+        VIDEO_URL: ${{ github.event.inputs.video_url }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        curl -L -o video.mp4 "$VIDEO_URL"
+        SIZE=$(stat -c%s video.mp4 2>/dev/null || echo 0)
+        if [ "$SIZE" -lt 10000 ]; then
+          REPO=$(echo "$VIDEO_URL" | cut -d/ -f4-5)
+          TAG=$(echo "$VIDEO_URL" | sed 's|.*/releases/download/||' | cut -d/ -f1)
+          JSON=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/$REPO/releases/tags/$TAG")
+          URL=$(echo "$JSON" | python3 -c "import sys,json;print(json.load(sys.stdin)['assets'][0]['url'])")
+          curl -L -H "Accept: application/octet-stream" -H "Authorization: Bearer $GH_TOKEN" -o video.mp4 "$URL"
+        fi
+        echo "Size: $(du -h video.mp4 | cut -f1)"
+
+    - name: Extract frames
+      run: |
+        DUR=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 video.mp4)
+        INT=$(echo "$DUR / 5" | bc -l)
+        ffmpeg -i video.mp4 -vf "fps=1/$INT" -frames:v 5 frame_%d.jpg -y
+
+    - name: Extract audio
+      run: ffmpeg -i video.mp4 -vn -acodec pcm_s16le -ar 16000 -ac 1 audio.wav -y
+
+    - name: Send to webhook
+      if: github.event.inputs.webhook_url
+      env:
+        WEBHOOK_URL: ${{ github.event.inputs.webhook_url }}
+        SHORTCODE: ${{ github.event.inputs.shortcode }}
+      run: |
+        python3 -c "
+import base64,json,os,glob
+frames=[base64.b64encode(open(f,'rb').read()).decode() for f in sorted(glob.glob('frame_*.jpg'))]
+audio=open('audio.wav','rb').read() if os.path.exists('audio.wav') else b''
+dur=float(os.popen('ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 audio.wav').read().strip()) if os.path.exists('audio.wav') else 0
+json.dump({'shortcode':os.environ['SHORTCODE'],'frames':frames,'audio':base64.b64encode(audio).decode(),'audio_duration':dur},open('payload.json','w'))
+print(f'{len(frames)} frames')
+"
+        curl -s -X POST "$WEBHOOK_URL" -H "Content-Type: application/json" -d @payload.json
+        echo "Sent"
+

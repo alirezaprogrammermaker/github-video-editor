@@ -10,6 +10,7 @@ export interface ZernioSocialAccountRow {
     status: string;
     admin_key: string | null;
     caption_template: string | null;
+    language: string | null;
     raw_data: string | null;
     synced_at: string;
     created_at?: string;
@@ -31,6 +32,7 @@ export class ZernioSocialAccount extends Model<ZernioSocialAccountRow> {
         profile_image?: string;
         status?: string;
         caption_template?: string;
+        language?: string;
         raw_data?: string;
     }) {
         const existing = await this.findByAccountId(data.account_id);
@@ -44,6 +46,7 @@ export class ZernioSocialAccount extends Model<ZernioSocialAccountRow> {
                     profile_image: data.profile_image ?? null,
                     status: data.status ?? 'active',
                     caption_template: data.caption_template ?? existing.caption_template,
+                    language: data.language ?? existing.language,
                     raw_data: data.raw_data ?? null,
                     synced_at: new Date().toISOString(),
                     updated_at: new Date().toISOString(),
@@ -55,6 +58,7 @@ export class ZernioSocialAccount extends Model<ZernioSocialAccountRow> {
                 ...data,
                 status: data.status ?? 'active',
                 caption_template: data.caption_template ?? '{caption}',
+                language: data.language ?? 'fa',
                 raw_data: data.raw_data ?? null,
                 synced_at: new Date().toISOString(),
             });

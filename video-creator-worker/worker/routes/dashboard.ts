@@ -809,12 +809,13 @@ dashboard.post('/zernio-social-accounts/sync/:zernioAccountId', async (c) => {
 dashboard.put('/zernio-social-accounts/:id', async (c) => {
     try {
         const id = c.req.param('id');
-        const { username, display_name, status, admin_key, caption_template } = await c.req.json<{
+        const { username, display_name, status, admin_key, caption_template, language } = await c.req.json<{
             username?: string;
             display_name?: string;
             status?: string;
             admin_key?: string;
             caption_template?: string;
+            language?: string;
         }>();
 
         ZernioSocialAccount.use(c.env.DB);
@@ -827,6 +828,7 @@ dashboard.put('/zernio-social-accounts/:id', async (c) => {
         if (status !== undefined) updates.status = status;
         if (admin_key !== undefined) updates.admin_key = admin_key || null;
         if (caption_template !== undefined) updates.caption_template = caption_template || '{caption}';
+        if (language !== undefined) updates.language = language || 'fa';
 
         await ZernioSocialAccount.update(id, updates);
         return c.json({ ok: true });

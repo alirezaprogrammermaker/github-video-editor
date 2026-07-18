@@ -24,6 +24,7 @@ interface SocialAccount {
     status: string;
     admin_key: string | null;
     caption_template: string | null;
+    language: string | null;
     synced_at: string;
 }
 
@@ -153,6 +154,7 @@ export function ZernioSocialAccounts() {
             status: record.status,
             admin_key: record.admin_key,
             caption_template: record.caption_template || '{caption}',
+            language: record.language || 'fa',
         });
         setEditModalVisible(true);
     }
@@ -369,6 +371,22 @@ export function ZernioSocialAccounts() {
                         <TextArea
                             placeholder="پیج ما را فالو کنید {caption} #hot"
                             autoSize={{ minRows: 2, maxRows: 4 }}
+                        />
+                    </Form.Item>
+                    <Form.Item name="language" label="زبان محتوا" tooltip="زبانی که هوش مصنوعی برای تولید کپشن و عنوان استفاده می‌کند">
+                        <Select
+                            options={[
+                                { label: 'فارسی', value: 'fa' },
+                                { label: 'English', value: 'en' },
+                                { label: 'العربیة', value: 'ar' },
+                                { label: 'Türkçe', value: 'tr' },
+                                { label: 'Español', value: 'es' },
+                                { label: 'Français', value: 'fr' },
+                                { label: 'Deutsch', value: 'de' },
+                                { label: 'Русский', value: 'ru' },
+                                { label: 'हिन्दी', value: 'hi' },
+                                { label: 'اردو', value: 'ur' },
+                            ]}
                         />
                     </Form.Item>
                 </Form>

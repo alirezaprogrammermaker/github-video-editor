@@ -279,7 +279,15 @@ export function VideoEdit() {
                 if (data.ai_title || data.ai_caption) {
                     clearInterval(interval);
                     setVideo(data);
-                    message.success('تحلیل ویدیو کامل شد!');
+                    // Auto-apply AI results to form
+                    if (data.ai_caption) form.setFieldValue('user_caption', data.ai_caption);
+                    if (data.ai_title) form.setFieldValue('static_text', data.ai_title);
+                    if (data.ai_hashtags) {
+                        const existingCaption = form.getFieldValue('user_caption') || '';
+                        const hashtags = data.ai_hashtags;
+                        form.setFieldValue('user_caption', existingCaption + '\n\n' + hashtags);
+                    }
+                    message.success('تحلیل ویدیو کامل شد! نتایج اعمال شد.');
                 }
             } catch {}
         }, 3000);
