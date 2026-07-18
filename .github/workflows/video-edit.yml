@@ -152,7 +152,7 @@ jobs:
         retention-days: 7
 
     - name: Notify webhook (success)
-      if: success() && github.event.inputs.webhook_url != ''
+      if: success() && github.event.inputs.webhook_url
       env:
         WEBHOOK_URL: ${{ github.event.inputs.webhook_url }}
         SHORTCODE: ${{ github.event.inputs.shortcode }}
@@ -165,7 +165,7 @@ jobs:
           -d "{\"shortcode\":\"$SHORTCODE\",\"status\":\"success\",\"tag\":\"$TAG\",\"output_url\":\"$OUTPUT_URL\",\"run_number\":\"${{ github.run_number }}\"}" || true
 
     - name: Notify webhook (failure)
-      if: failure() && github.event.inputs.webhook_url != ''
+      if: failure() && github.event.inputs.webhook_url
       env:
         WEBHOOK_URL: ${{ github.event.inputs.webhook_url }}
         SHORTCODE: ${{ github.event.inputs.shortcode }}

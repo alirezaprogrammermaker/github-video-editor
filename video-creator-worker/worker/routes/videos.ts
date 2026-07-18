@@ -9,53 +9,6 @@ import type { Bindings, Variables } from '../types';
 
 const videos = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
-// --- Webhook Callback (PUBLIC - no auth) ---
-
-videos.post('/workflow-callback', async (c) => {
-    try {
-        const body = await c.req.json<{
-            shortcode?: string;
-            status?: string;
-            tag?: string;
-            output_url?: string;
-            error?: string;
-            run_number?: string;
-        }>();
-
-        console.log('[Videos] Workflow callback received:', body);
-
-        if (!body.shortcode) {
-            return c.json({ error: 'shortcode is required' }, 400);
-        }
-
-        InstagramVideo.use(c.env.DB);
-        const video = await InstagramVideo.findByShortcode(body.shortcode);
-        if (!video) return c.json({ error: 'ویدیو یافت نشد' }, 404);
-
-        if (body.status === 'success' && body.output_url) {
-            await InstagramVideo.update(video.id, {
-                status: VideoStatus.READY,
-                output_url: body.output_url,
-                build_log: `Build completed via webhook. Tag: ${body.tag}`,
-                updated_at: nowTehran(),
-            });
-            console.log(`[Videos] Video ${body.shortcode} marked as READY via webhook`);
-        } else if (body.status === 'failure') {
-            await InstagramVideo.update(video.id, {
-                status: VideoStatus.FAILED,
-                build_log: `Build failed via webhook: ${body.error || 'unknown'}`,
-                updated_at: nowTehran(),
-            });
-            console.log(`[Videos] Video ${body.shortcode} marked as FAILED via webhook`);
-        }
-
-        return c.json({ ok: true });
-    } catch (e: any) {
-        console.error('[Videos] Callback error:', e?.message);
-        return c.json({ error: e?.message || 'خطا در پردازش callback' }, 500);
-    }
-});
-
 videos.use('*', requireAuth);
 
 // --- Helpers ---
@@ -285,7 +238,7 @@ async function triggerVideoWorkflow(db: D1Database, video: InstagramVideoRow, te
     }
 
     // Build webhook URL from the worker's own domain
-    const webhookUrl = `https://video-creator-worker.social-panel.workers.dev/api/videos/workflow-callback`;
+    const webhookUrl = `https://video-creator-worker.social-panel.workers.dev/api/callback/workflow`;
 
     const inputs: Record<string, string> = {
         video_url: video.proxied_url,
