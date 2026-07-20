@@ -12,3 +12,6 @@ outputs/
 temps/
 *.mp4
 !video.mp4
+
+# Test/debug data
+video-creator-worker/instagram-reel-post-data.json
