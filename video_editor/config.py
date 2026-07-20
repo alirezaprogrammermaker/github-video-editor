@@ -12,7 +12,7 @@ class TextStyle:
     border_color: str = "black@0.8"
     shadow_offset: int = 2
     shadow_color: str = "black@0.5"
-    line_spacing: int = 12
+    line_spacing: int = 24
     background: bool = False
     background_color: str = "black@0.85"
     background_padding: int = 10
