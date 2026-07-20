@@ -13,5 +13,8 @@ temps/
 *.mp4
 !video.mp4
 
+# Cloudflare Worker (separate repo / private)
+video-creator-worker/
+
 # Test/debug data
 video-creator-worker/instagram-reel-post-data.json
