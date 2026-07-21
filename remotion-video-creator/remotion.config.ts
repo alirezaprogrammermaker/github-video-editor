@@ -1,8 +1,5 @@
 import { Config } from "@remotion/cli/config";
 
-// Use system Chrome
-Config.setBrowserExecutable("C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe");
-
 // Quality settings
 Config.setCrf(18);  // Default quality (good balance)
 Config.setJpegQuality(90);
