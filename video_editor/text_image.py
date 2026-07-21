@@ -13,6 +13,7 @@ from typing import List, Tuple
 
 from PIL import Image, ImageDraw, ImageFont
 import arabic_reshaper
+import numpy as np
 from bidi.algorithm import get_display
 
 _BUNDLED_DIR = Path(__file__).resolve().parent.parent / "fonts"
@@ -128,19 +129,40 @@ class TextImageGenerator:
         return (r, g, b, int(alpha * 255))
 
     def render(self, text: str, output_path: str | Path) -> TextImage:
-        """Render text to a transparent PNG and return its metadata."""
+        """Render text to a transparent PNG and return its metadata.
+
+        Text is centered horizontally within the image by measuring actual pixels.
+        """
         output_path = Path(output_path)
 
         shaped = _shape_text(text)
         display_text = get_display(shaped)
 
-        bbox = self._font.getbbox(display_text)
-        text_w = bbox[2] - bbox[0]
-        text_h = bbox[3] - bbox[1]
+        # First pass: render text to measure actual pixel bounds
+        temp_img = Image.new("RGBA", (2000, 200), (0, 0, 0, 0))
+        temp_draw = ImageDraw.Draw(temp_img)
+        temp_draw.text((100, 50), display_text, font=self._font,
+                       fill=(255, 255, 255, 255))
+
+        # Find actual text pixel bounds
+        temp_arr = np.array(temp_img)
+        white_mask = (temp_arr[:,:,0] > 200) & (temp_arr[:,:,1] > 200) & (temp_arr[:,:,2] > 200)
+        cols = np.where(np.any(white_mask, axis=0))[0]
+        rows = np.where(np.any(white_mask, axis=1))[0]
+
+        if len(cols) == 0 or len(rows) == 0:
+            # Fallback if no pixels found
+            actual_text_w = 100
+            actual_text_h = 50
+            actual_text_x_offset = 0
+        else:
+            actual_text_w = cols[-1] - cols[0] + 1
+            actual_text_h = rows[-1] - rows[0] + 1
+            actual_text_x_offset = cols[0] - 100  # offset from draw position
 
         padding = self._bg_padding + self._border_width + self._shadow_offset
-        total_w = text_w + 2 * padding
-        total_h = text_h + 2 * padding
+        total_w = actual_text_w + 2 * padding
+        total_h = actual_text_h + 2 * padding
 
         # Ensure even dimensions for libx264 compatibility
         total_w = total_w + (total_w % 2)
@@ -157,16 +179,18 @@ class TextImageGenerator:
                 fill=self._bg_color,
             )
 
+        # Center text horizontally within image
+        text_x = (total_w - actual_text_w) // 2 - actual_text_x_offset
+        text_y = padding
+
         # Shadow
         if self._shadow_offset:
-            shadow_x = padding - bbox[0] + self._shadow_offset
-            shadow_y = padding - bbox[1] + self._shadow_offset
+            shadow_x = text_x + self._shadow_offset
+            shadow_y = text_y + self._shadow_offset
             draw.text((shadow_x, shadow_y), display_text, font=self._font,
                       fill=self._shadow_color)
 
         # Main text
-        text_x = padding - bbox[0]
-        text_y = padding - bbox[1]
         draw.text((text_x, text_y), display_text, font=self._font,
                   fill=self._font_color)
 
