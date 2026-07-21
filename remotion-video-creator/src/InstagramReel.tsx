@@ -166,7 +166,7 @@ export const InstagramReel: React.FC<InstagramReelProps> = ({
         <div
           style={{
             position: "absolute",
-            bottom: 96,
+            bottom: 160,
             left: 0,
             right: 0,
             display: "flex",
