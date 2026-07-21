@@ -9,6 +9,7 @@
     "@remotion/cli": "4.0.495",
     "@remotion/fonts": "4.0.495",
     "@remotion/layout-utils": "4.0.495",
+    "@remotion/media": "^4.0.495",
     "@remotion/paths": "4.0.495",
     "@remotion/rounded-text-box": "4.0.495",
     "@remotion/tailwind-v4": "4.0.495",
