@@ -93,7 +93,7 @@ export const InstagramReel: React.FC<InstagramReelProps> = ({
 
   // Title timing: show for 3 seconds (90 frames)
   const titleDuration = 3 * fps;
-  const titleOpacity = interpolate(frame, [0, 10, titleDuration - 15, titleDuration], [0, 1, 1, 0], {
+  const titleOpacity = interpolate(frame, [0, titleDuration - 15, titleDuration], [1, 1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
