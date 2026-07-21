@@ -119,7 +119,7 @@ jobs:
         WATERMARK_TEXT_ESCAPED=$(echo "$WATERMARK_TEXT" | sed 's/"/\\"/g')
 
         npx remotion render \
-          --props="{\"watermark\":\"${WATERMARK_TEXT_ESCAPED}\",\"title\":\"${STATIC_TEXT_ESCAPED}\",\"scrollingText\":\"${MARQUEE_TEXT_ESCAPED}\"}" \
+          --props="{\"watermark\":\"${WATERMARK_TEXT_ESCAPED}\",\"title\":\"${STATIC_TEXT_ESCAPED}\",\"scrollingText\":\"${MARQUEE_TEXT_ESCAPED}\",\"videoSrc\":\"video.mp4\"}" \
           --output="../outputs/output.mp4" \
           --codec="h264" \
           --pixel-format="yuv420p" \

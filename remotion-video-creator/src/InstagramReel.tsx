@@ -17,6 +17,7 @@ type InstagramReelProps = {
   watermark?: string;
   title?: string;
   scrollingText?: string;
+  videoSrc?: string;
 };
 
 const fontFamily = "Vazirmatn";
@@ -65,6 +66,7 @@ export const InstagramReel: React.FC<InstagramReelProps> = ({
   watermark = "@yourpage",
   title = "",
   scrollingText = "",
+  videoSrc = "video.mp4",
 }) => {
   const frame = useCurrentFrame();
   const { fps, width } = useVideoConfig();
@@ -133,7 +135,7 @@ export const InstagramReel: React.FC<InstagramReelProps> = ({
   return (
     <AbsoluteFill style={{ overflow: "hidden", backgroundColor: "black" }}>
       <Video
-        src={staticFile("video.mp4")}
+        src={staticFile(videoSrc)}
         loop
         style={{ width: "100%", height: "100%", objectFit: "cover" }}
       />
