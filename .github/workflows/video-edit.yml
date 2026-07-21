@@ -66,6 +66,16 @@ jobs:
         echo "Downloading video from: $VIDEO_URL"
         curl -L -o remotion-video-creator/public/input_video.mp4 "$VIDEO_URL"
         echo "Downloaded video size: $(du -h remotion-video-creator/public/input_video.mp4 | cut -f1)"
+        echo "File type: $(file remotion-video-creator/public/input_video.mp4)"
+        echo "First 100 bytes (hex):"
+        xxd -l 100 remotion-video-creator/public/input_video.mp4 || true
+
+    - name: Validate video file
+      if: github.event.inputs.video_url != ''
+      run: |
+        echo "Validating downloaded video file..."
+        ffprobe -v error -show_format -show_streams remotion-video-creator/public/input_video.mp4 || echo "Warning: ffprobe validation failed"
+        echo "File size: $(wc -c < remotion-video-creator/public/input_video.mp4) bytes"
 
     - name: Prepare video file
       run: |
@@ -74,6 +84,7 @@ jobs:
         if [ -f "input_video.mp4" ]; then
           echo "Using downloaded video"
           cp input_video.mp4 video.mp4
+          echo "Copied video.mp4 size: $(du -h video.mp4 | cut -f1)"
         else
           echo "Using bundled video.mp4"
         fi
