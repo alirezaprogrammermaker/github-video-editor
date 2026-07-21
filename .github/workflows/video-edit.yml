@@ -63,8 +63,18 @@ jobs:
       env:
         VIDEO_URL: ${{ github.event.inputs.video_url }}
       run: |
-        echo "Downloading video from: $VIDEO_URL"
-        wget -q -O remotion-video-creator/public/input_video.mp4 "$VIDEO_URL" || curl -L --retry 3 -o remotion-video-creator/public/input_video.mp4 "$VIDEO_URL"
+        echo "Downloading video from URL..."
+        echo "URL length: ${#VIDEO_URL} characters"
+
+        # Save URL to file to avoid shell escaping issues
+        echo "$VIDEO_URL" > /tmp/video_url.txt
+
+        # Try download with curl using URL from file
+        curl -L --retry 3 --max-time 120 \
+          -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+          -o remotion-video-creator/public/input_video.mp4 \
+          "$(cat /tmp/video_url.txt)"
+
         echo "Downloaded video size: $(du -h remotion-video-creator/public/input_video.mp4 | cut -f1)"
         echo "File type: $(file remotion-video-creator/public/input_video.mp4)"
         echo "First 10 bytes (hex):"
