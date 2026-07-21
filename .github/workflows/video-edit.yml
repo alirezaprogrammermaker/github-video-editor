@@ -97,7 +97,6 @@ jobs:
           --codec="h264" \
           --pixel-format="yuv420p" \
           --crf="18" \
-          --video-bitrate="8M" \
           "InstagramReel"
 
     - name: Upload as Release (mp4)
