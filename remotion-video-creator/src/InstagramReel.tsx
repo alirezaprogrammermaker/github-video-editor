@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   AbsoluteFill,
+  Video,
   staticFile,
   useCurrentFrame,
   useVideoConfig,
@@ -10,7 +11,6 @@ import {
   delayRender,
   cancelRender,
 } from "remotion";
-import { Video } from "@remotion/media";
 import { loadFont } from "@remotion/fonts";
 
 type InstagramReelProps = {
