@@ -189,8 +189,16 @@ class TextImageGenerator:
             images.append(self.render(line, path))
         return images
 
-    def render_combined(self, lines: List[str], output_path: str | Path) -> TextImage:
-        """Render multiple lines of text into a single combined PNG."""
+    def render_combined(self, lines: List[str], output_path: str | Path,
+                        video_height: int = 0) -> TextImage:
+        """Render multiple lines of text into a single combined PNG.
+
+        Args:
+            lines: Text lines to render
+            output_path: Output PNG file path
+            video_height: Video height in pixels for dynamic spacing calculation.
+                         If 0, uses default spacing.
+        """
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -209,10 +217,49 @@ class TextImageGenerator:
             line_images.append((display_text, text_w, text_h, padding, bbox))
 
         # Calculate combined dimensions
-        max_width = max(li[1] for li in line_images) + 2 * line_images[0][3]
-        total_height = sum(li[2] + line_images[0][3] * 2 for li in line_images)
-        line_spacing = self._font_size // 4  # spacing between lines
-        total_height += line_spacing * (len(lines) - 1)
+        # Account for negative bbox[0] in RTL text (text extends beyond measured width)
+        min_bbox_x = min(li[4][0] for li in line_images)  # most negative bbox[0]
+        max_bbox_x2 = max(li[4][2] for li in line_images)  # max bbox[2]
+        text_span = max_bbox_x2 - min_bbox_x  # actual horizontal span including overshoot
+        max_width = text_span + 2 * line_images[0][3]
+
+        # Calculate single line height (text + padding on both sides)
+        single_line_height = line_images[0][2] + line_images[0][3] * 2
+        num_lines = len(lines)
+
+        # Dynamic line spacing calculation based on video height
+        if video_height > 0 and num_lines > 1:
+            # Static text is positioned at bottom with ~15% margin from bottom
+            # So available height is roughly 15% to 85% of video = 70% of video height
+            # But we should be conservative - use only the space above the margin
+            available_height = int(video_height * 0.35)  # Conservative: 35% of video height
+
+            # Calculate space needed for all lines (without inter-line spacing)
+            min_total_height = single_line_height * num_lines
+
+            # Calculate spacing based on available space
+            if min_total_height < available_height:
+                # We have room - distribute remaining space evenly
+                remaining_space = available_height - min_total_height
+                line_spacing = remaining_space // (num_lines - 1)
+
+                # Cap at reasonable limits (20-40% of line height)
+                max_reasonable = int(single_line_height * 0.4)
+                min_reasonable = int(single_line_height * 0.2)
+                line_spacing = max(min_reasonable, min(line_spacing, max_reasonable))
+            else:
+                # Tight fit - use minimal spacing (20% of line height)
+                line_spacing = int(single_line_height * 0.2)
+        else:
+            # Default spacing for single line or when video_height not provided
+            # Use 25% of font size as baseline
+            line_spacing = int(self._font_size * 0.25)
+
+        # Calculate total height: sum of text heights + spacing + padding top/bottom
+        total_text_height = sum(li[2] for li in line_images)
+        total_spacing = line_spacing * (num_lines - 1)
+        padding_top_bottom = line_images[0][3] * 2  # padding at top and bottom
+        total_height = total_text_height + total_spacing + padding_top_bottom
 
         # Ensure even dimensions
         max_width = max_width + (max_width % 2)
@@ -230,10 +277,13 @@ class TextImageGenerator:
             )
 
         # Render each line
-        y_offset = line_images[0][3]  # start with padding
+        # y_offset tracks the VISIBLE top position of each line
+        y_offset = line_images[0][3]  # start with top padding
         for i, (display_text, text_w, text_h, padding, bbox) in enumerate(line_images):
-            # Center horizontally
-            text_x = (max_width - text_w) // 2 - bbox[0]
+            # Center each line horizontally within max_width
+            line_visible_width = bbox[2] - bbox[0]
+            text_x = (max_width - line_visible_width) // 2 - bbox[0]
+            # Draw at visible position minus bbox offset
             text_y = y_offset - bbox[1]
 
             # Shadow
@@ -247,7 +297,8 @@ class TextImageGenerator:
             draw.text((text_x, text_y), display_text, font=self._font,
                       fill=self._font_color)
 
-            y_offset += text_h + padding * 2
+            # Advance to next line's visible top
+            y_offset += text_h
             if i < len(lines) - 1:
                 y_offset += line_spacing
 

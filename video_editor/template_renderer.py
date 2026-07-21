@@ -223,8 +223,11 @@ class TemplateRenderer:
             images = img_gen.render_lines(block.lines, self._work_dir / suffix)
         else:
             # Use combined rendering for static text (multi-line support)
+            # Pass video_height for dynamic line spacing calculation
             combined_path = self._work_dir / "_static_combined.png"
-            combined_img = img_gen.render_combined(block.lines, combined_path)
+            combined_img = img_gen.render_combined(
+                block.lines, combined_path, video_height=video_h
+            )
             y = layout.vertical_position(
                 combined_img.height, "bottom", margin_percent=0.15
             )

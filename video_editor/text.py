@@ -51,20 +51,28 @@ class TextRenderer:
 
     @staticmethod
     def _wrap(text: str, max_chars: int) -> List[str]:
+        """Wrap text at word boundaries (spaces) to prevent splitting words."""
         if len(text) <= max_chars:
             return [text]
 
+        # Split text into words (preserving spaces for RTL)
+        words = text.split(' ')
+
         lines: List[str] = []
-        current = ""
+        current_line = ""
 
-        for char in text:
-            if len(current) + 1 <= max_chars:
-                current += char
+        for word in words:
+            # Check if adding this word would exceed the limit
+            test_line = current_line + (" " if current_line else "") + word
+            if len(test_line) <= max_chars:
+                current_line = test_line
             else:
-                lines.append(current)
-                current = char
+                # If current line is not empty, save it and start new line
+                if current_line:
+                    lines.append(current_line)
+                current_line = word
 
-        if current:
-            lines.append(current)
+        if current_line:
+            lines.append(current_line)
 
         return lines

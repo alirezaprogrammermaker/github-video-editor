@@ -11,8 +11,6 @@ from .job import RenderJob
 from .templates import (
     VideoTemplate,
     DefaultTemplate,
-    MarqueeOnlyTemplate,
-    StaticOnlyTemplate,
     get_template,
     TEMPLATES,
 )
@@ -31,8 +29,6 @@ __all__ = [
     "VideoNotFoundError",
     "VideoTemplate",
     "DefaultTemplate",
-    "MarqueeOnlyTemplate",
-    "StaticOnlyTemplate",
     "get_template",
     "TEMPLATES",
     "TemplateRenderer",

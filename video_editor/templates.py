@@ -3,11 +3,6 @@
 Templates define a reusable video composition pipeline. Each template
 specifies which elements to render (static text, marquee, watermark)
 and how to compose them.
-
-To add a new template:
-  1. Create a new class inheriting from VideoTemplate
-  2. Define defaults as class attributes
-  3. Register it in TEMPLATES dict at the bottom
 """
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -76,15 +71,7 @@ class VideoTemplate:
     watermark: Optional[WatermarkElementConfig] = None
 
     def apply(self, **overrides) -> "VideoTemplate":
-        """Return a new template instance with overrides applied.
-
-        Usage:
-            tpl = DefaultTemplate()
-            instance = tpl.apply(
-                marquee_text="متن جدید",
-                watermark_text="@my_channel",
-            )
-        """
+        """Return a new template instance with overrides applied."""
         import copy
         t = copy.deepcopy(self)
 
@@ -126,7 +113,7 @@ class VideoTemplate:
 
 
 class DefaultTemplate(VideoTemplate):
-    """Default template: watermark + static text (0-2s) + marquee (2s-end)."""
+    """Default template: static text (0-2s) + marquee (2s-end) + watermark."""
     name = "default"
     description = "Static text 0-2s, marquee 2s-end, watermark top-right"
 
@@ -135,70 +122,9 @@ class DefaultTemplate(VideoTemplate):
     watermark = WatermarkElementConfig()
 
 
-class MarqueeOnlyTemplate(VideoTemplate):
-    """Marquee only — no static text, no watermark."""
-    name = "marquee-only"
-    description = "Marquee text only, no static text or watermark"
-
-    static_text = None
-    marquee = MarqueeConfig()
-    watermark = None
-
-
-class StaticOnlyTemplate(VideoTemplate):
-    """Static text only — centered, no animation."""
-    name = "static-only"
-    description = "Static centered text, no marquee or watermark"
-
-    static_text = StaticTextConfig(
-        start=0.0, end=9999.0,
-        position="center",
-        style=TextStyle(
-            font_size=70, font_color="white",
-            background=True, background_color="black@0.9",
-            background_padding=20,
-        ),
-    )
-    marquee = None
-    watermark = None
-
-
-class PersianShopTemplate(VideoTemplate):
-    """Persian shop template: static text top (0-2s) + marquee LTR (2s-end) + watermark top-right no bg."""
-    name = "persian-shop"
-    description = "Static text top 0-2s, marquee LTR 2s-end, watermark top-right no background"
-
-    static_text = StaticTextConfig(
-        position="top-center",
-        style=TextStyle(
-            font_size=65, font_color="white",
-            background=True, background_color="black@0.9",
-            background_padding=15,
-        ),
-    )
-    marquee = MarqueeConfig(
-        speed=1.0,
-        style=TextStyle(
-            font_size=50, font_color="white",
-            background=False,
-        ),
-    )
-    watermark = WatermarkElementConfig(
-        config=WatermarkConfig(
-            text="",
-            position="top-right",
-            opacity=0.8,
-            scale=0.20,
-            margin=15,
-        ),
-    )
-
-
+# Only default template is used
 TEMPLATES = {
     "default": DefaultTemplate,
-    "persian-shop": PersianShopTemplate,
-    "marquee-only": MarqueeOnlyTemplate,
-    "static-only": StaticOnlyTemplate,
 }
 
 
