@@ -1,26 +1,24 @@
 import "./index.css";
 import { Composition, CalculateMetadataFunction } from "remotion";
 import { InstagramReel } from "./InstagramReel";
-import { getVideoMetadata } from "@remotion/media";
 
 type InstagramReelProps = {
   watermark?: string;
   title?: string;
   scrollingText?: string;
   videoSrc?: string;
+  durationInSeconds?: number;
 };
 
 const FPS = 30;
+const DEFAULT_DURATION = 15 * FPS; // 15 seconds default
 
-const calculateMetadata: CalculateMetadataFunction<InstagramReelProps> = async ({
+const calculateMetadata: CalculateMetadataFunction<InstagramReelProps> = ({
   props,
 }) => {
-  const src = props.videoSrc ?? "video.mp4";
-  const metadata = await getVideoMetadata(
-    src.startsWith("http") ? src : `http://localhost:3000/${src}`
-  );
+  const duration = props.durationInSeconds ?? 15;
   return {
-    durationInFrames: Math.ceil(metadata.durationInSeconds * FPS),
+    durationInFrames: Math.ceil(duration * FPS),
   };
 };
 
@@ -39,6 +37,7 @@ export const RemotionRoot: React.FC = () => {
           title: "این یک عنوان شش کلمه‌ای است",
           scrollingText: "متن متحرک از چپ به راست",
           videoSrc: "video.mp4",
+          durationInSeconds: 15,
         }}
       />
     </>

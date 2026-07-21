@@ -113,13 +113,17 @@ jobs:
         WATERMARK_TEXT: ${{ github.event.inputs.watermark_text }}
       working-directory: remotion-video-creator
       run: |
+        # Detect video duration using ffprobe
+        DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 public/video.mp4 2>/dev/null || echo "15")
+        echo "Detected video duration: ${DURATION}s"
+
         # Build props JSON for Remotion
         STATIC_TEXT_ESCAPED=$(echo "$STATIC_TEXT" | sed 's/"/\\"/g')
         MARQUEE_TEXT_ESCAPED=$(echo "$MARQUEE_TEXT" | sed 's/"/\\"/g')
         WATERMARK_TEXT_ESCAPED=$(echo "$WATERMARK_TEXT" | sed 's/"/\\"/g')
 
         npx remotion render \
-          --props="{\"watermark\":\"${WATERMARK_TEXT_ESCAPED}\",\"title\":\"${STATIC_TEXT_ESCAPED}\",\"scrollingText\":\"${MARQUEE_TEXT_ESCAPED}\",\"videoSrc\":\"video.mp4\"}" \
+          --props="{\"watermark\":\"${WATERMARK_TEXT_ESCAPED}\",\"title\":\"${STATIC_TEXT_ESCAPED}\",\"scrollingText\":\"${MARQUEE_TEXT_ESCAPED}\",\"videoSrc\":\"video.mp4\",\"durationInSeconds\":${DURATION}}" \
           --output="../outputs/output.mp4" \
           --codec="h264" \
           --pixel-format="yuv420p" \
