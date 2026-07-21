@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   AbsoluteFill,
   Video,
@@ -7,6 +7,9 @@ import {
   useVideoConfig,
   interpolate,
   Easing,
+  continueRender,
+  delayRender,
+  cancelRender,
 } from "remotion";
 import { loadFont } from "@remotion/fonts";
 
@@ -66,19 +69,25 @@ export const InstagramReel: React.FC<InstagramReelProps> = ({
   const frame = useCurrentFrame();
   const { fps, width } = useVideoConfig();
 
-  // Load fonts on mount
+  // Load fonts on mount with delayRender to prevent stuttering
+  const [handle] = useState(() => delayRender("Loading fonts"));
+
   useEffect(() => {
-    loadFont({
-      family: "Vazirmatn",
-      url: staticFile("Vazirmatn-Regular.ttf"),
-      weight: "400",
-    });
-    loadFont({
-      family: "Vazirmatn",
-      url: staticFile("Vazirmatn-Bold.ttf"),
-      weight: "700",
-    });
-  }, []);
+    Promise.all([
+      loadFont({
+        family: "Vazirmatn",
+        url: staticFile("Vazirmatn-Regular.ttf"),
+        weight: "400",
+      }),
+      loadFont({
+        family: "Vazirmatn",
+        url: staticFile("Vazirmatn-Bold.ttf"),
+        weight: "700",
+      }),
+    ])
+      .then(() => continueRender(handle))
+      .catch((err) => cancelRender(err));
+  }, [handle]);
 
   // Title timing: show for 3 seconds (90 frames)
   const titleDuration = 3 * fps;

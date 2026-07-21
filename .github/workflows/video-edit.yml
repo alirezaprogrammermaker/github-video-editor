@@ -95,6 +95,9 @@ jobs:
           --props="{\"watermark\":\"${WATERMARK_TEXT_ESCAPED}\",\"title\":\"${STATIC_TEXT_ESCAPED}\",\"scrollingText\":\"${MARQUEE_TEXT_ESCAPED}\"}" \
           --output="../outputs/output.mp4" \
           --codec="h264" \
+          --pixel-format="yuv420p" \
+          --crf="18" \
+          --video-bitrate="8M" \
           "InstagramReel"
 
     - name: Upload as Release (mp4)
