@@ -134,6 +134,7 @@ export const InstagramReel: React.FC<InstagramReelProps> = ({
     <AbsoluteFill style={{ overflow: "hidden", backgroundColor: "black" }}>
       <Video
         src={staticFile("video.mp4")}
+        loop
         style={{ width: "100%", height: "100%", objectFit: "cover" }}
       />
 

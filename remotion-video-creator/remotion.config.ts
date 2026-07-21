@@ -1,13 +1,10 @@
-/**
- * Note: When using the Node.JS APIs, the config file
- * doesn't apply. Instead, pass options directly to the APIs.
- *
- * All configuration options: https://remotion.dev/docs/config
- */
-
 import { Config } from "@remotion/cli/config";
-import { enableTailwind } from '@remotion/tailwind-v4';
 
-Config.setVideoImageFormat("jpeg");
+// Use system Chrome
+Config.setBrowserExecutable("C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe");
+
+// Quality settings
+Config.setCrf(18);  // Default quality (good balance)
+Config.setJpegQuality(90);
+Config.setConcurrency(4);  // Reduce concurrency to prevent frame drops
 Config.setOverwriteOutput(true);
-Config.overrideWebpackConfig(enableTailwind);
