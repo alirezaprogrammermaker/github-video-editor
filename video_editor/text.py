@@ -51,28 +51,37 @@ class TextRenderer:
 
     @staticmethod
     def _wrap(text: str, max_chars: int) -> List[str]:
-        """Wrap text at word boundaries (spaces) to prevent splitting words."""
-        if len(text) <= max_chars:
-            return [text]
+        """Wrap text at word boundaries (spaces) to prevent splitting words.
 
-        # Split text into words (preserving spaces for RTL)
-        words = text.split(' ')
+        Handles explicit newlines (\n) as line breaks.
+        """
+        # First, split by newlines to respect explicit line breaks
+        paragraphs = text.split('\n')
 
-        lines: List[str] = []
-        current_line = ""
+        all_lines: List[str] = []
+        for paragraph in paragraphs:
+            paragraph = paragraph.strip()
+            if not paragraph:
+                continue
 
-        for word in words:
-            # Check if adding this word would exceed the limit
-            test_line = current_line + (" " if current_line else "") + word
-            if len(test_line) <= max_chars:
-                current_line = test_line
-            else:
-                # If current line is not empty, save it and start new line
-                if current_line:
-                    lines.append(current_line)
-                current_line = word
+            if len(paragraph) <= max_chars:
+                all_lines.append(paragraph)
+                continue
 
-        if current_line:
-            lines.append(current_line)
+            # Wrap this paragraph at word boundaries
+            words = paragraph.split(' ')
+            current_line = ""
 
-        return lines
+            for word in words:
+                test_line = current_line + (" " if current_line else "") + word
+                if len(test_line) <= max_chars:
+                    current_line = test_line
+                else:
+                    if current_line:
+                        all_lines.append(current_line)
+                    current_line = word
+
+            if current_line:
+                all_lines.append(current_line)
+
+        return all_lines if all_lines else [text]
