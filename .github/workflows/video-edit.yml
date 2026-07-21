@@ -64,18 +64,24 @@ jobs:
         VIDEO_URL: ${{ github.event.inputs.video_url }}
       run: |
         echo "Downloading video from: $VIDEO_URL"
-        curl -L -o remotion-video-creator/public/input_video.mp4 "$VIDEO_URL"
+        wget -q -O remotion-video-creator/public/input_video.mp4 "$VIDEO_URL" || curl -L --retry 3 -o remotion-video-creator/public/input_video.mp4 "$VIDEO_URL"
         echo "Downloaded video size: $(du -h remotion-video-creator/public/input_video.mp4 | cut -f1)"
         echo "File type: $(file remotion-video-creator/public/input_video.mp4)"
-        echo "First 100 bytes (hex):"
-        xxd -l 100 remotion-video-creator/public/input_video.mp4 || true
+        echo "First 10 bytes (hex):"
+        xxd -l 10 remotion-video-creator/public/input_video.mp4 || true
 
     - name: Validate video file
       if: github.event.inputs.video_url != ''
       run: |
         echo "Validating downloaded video file..."
+        FILE_SIZE=$(wc -c < remotion-video-creator/public/input_video.mp4)
+        echo "File size: $FILE_SIZE bytes"
+        if [ "$FILE_SIZE" -lt 1000 ]; then
+          echo "ERROR: Downloaded file is too small, likely not a valid video"
+          cat remotion-video-creator/public/input_video.mp4
+          exit 1
+        fi
         ffprobe -v error -show_format -show_streams remotion-video-creator/public/input_video.mp4 || echo "Warning: ffprobe validation failed"
-        echo "File size: $(wc -c < remotion-video-creator/public/input_video.mp4) bytes"
 
     - name: Prepare video file
       run: |
