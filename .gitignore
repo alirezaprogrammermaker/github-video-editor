@@ -1,10 +1,20 @@
+# Python
 .venv/
 __pycache__/
 *.pyc
+
+# IDE
 .idea/
+.vscode/
+
+# Environment
 .env
+
+# Logs
 logs/
 logs2/
+
+# Archives
 *.zip
 
 # Generated outputs
@@ -12,6 +22,11 @@ outputs/
 temps/
 *.mp4
 !video.mp4
+
+# Remotion
+remotion-video-creator/node_modules/
+remotion-video-creator/.remotion/
+remotion-video-creator/out/
 
 # Cloudflare Worker (separate repo / private)
 video-creator-worker/

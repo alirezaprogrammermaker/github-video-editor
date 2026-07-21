@@ -35,12 +35,8 @@ on:
           - zip
 
 env:
-  # Force UTF-8 everywhere. Persian/Arabic text otherwise gets corrupted to
-  # "?" by ASCII decoding under a POSIX locale, producing "????" in the video.
   PYTHONUTF8: "1"
   PYTHONIOENCODING: "utf-8"
-  LANG: "C.UTF-8"
-  LC_ALL: "C.UTF-8"
 
 jobs:
   edit:
@@ -51,58 +47,16 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install FFmpeg
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y ffmpeg
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
       with:
-        python-version: "3.12"
-        cache: "pip"
+        node-version: "20"
+        cache: "npm"
+        cache-dependency-path: remotion-video-creator/package-lock.json
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install Pillow arabic-reshaper python-bidi requests
-
-    - name: Set up fonts
-      run: |
-        mkdir -p fonts
-        if [ -f "fonts/Vazirmatn-Bold.ttf" ]; then
-          echo "Using bundled Vazirmatn font"
-          ls -la fonts/
-        else
-          echo "Downloading Vazirmatn font..."
-          wget -q -O vazirmatn.zip "https://github.com/rastikerdar/vazirmatn/releases/download/v33.003/vazirmatn-v33.003.zip"
-          unzip -jo vazirmatn.zip "fonts/ttf/Vazirmatn-Bold.ttf" -d fonts/
-          rm -f vazirmatn.zip
-          echo "Downloaded Vazirmatn-Bold.ttf"
-        fi
-        ls -la fonts/
-        file fonts/Vazirmatn-Bold.ttf
-
-    - name: Verify Persian text arrives intact (guard against mojibake)
-      run: |
-        python - "$GITHUB_EVENT_PATH" <<'PYEOF'
-        import json, sys
-        event_path = sys.argv[1]
-        with open(event_path, encoding="utf-8") as f:
-            ev = json.load(f)
-        inputs = ev.get("inputs", {})
-        for name, val in inputs.items():
-            if not val or name == "video_url":
-                continue
-            has_persian = any("\u0600" <= c <= "\u06FF" or "\u06F0" <= c <= "\u06F9"
-                              for c in val)
-            print(f"{name}: {val!r}  has_persian={has_persian}")
-            if any(c in val for c in ("?", "\ufffd")):
-                print(f"ERROR: {name} is corrupted. "
-                      "The workflow_dispatch request was not UTF-8 encoded.",
-                      file=sys.stderr)
-                sys.exit(1)
-        PYEOF
+    - name: Install Remotion dependencies
+      working-directory: remotion-video-creator
+      run: npm ci
 
     - name: Download video from URL
       if: github.event.inputs.video_url != ''
@@ -110,27 +64,38 @@ jobs:
         VIDEO_URL: ${{ github.event.inputs.video_url }}
       run: |
         echo "Downloading video from: $VIDEO_URL"
-        curl -L -o input_video.mp4 "$VIDEO_URL"
-        echo "Downloaded video size: $(du -h input_video.mp4 | cut -f1)"
+        curl -L -o remotion-video-creator/public/input_video.mp4 "$VIDEO_URL"
+        echo "Downloaded video size: $(du -h remotion-video-creator/public/input_video.mp4 | cut -f1)"
 
-    - name: Edit video
+    - name: Prepare video file
+      run: |
+        mkdir -p outputs
+        cd remotion-video-creator/public
+        if [ -f "input_video.mp4" ]; then
+          echo "Using downloaded video"
+          cp input_video.mp4 video.mp4
+        else
+          echo "Using bundled video.mp4"
+        fi
+        ls -la *.mp4
+
+    - name: Render video with Remotion
       env:
-        VIDEO_URL: ${{ github.event.inputs.video_url }}
-        TEMPLATE: ${{ github.event.inputs.template }}
         STATIC_TEXT: ${{ github.event.inputs.static_text }}
         MARQUEE_TEXT: ${{ github.event.inputs.marquee_text }}
         WATERMARK_TEXT: ${{ github.event.inputs.watermark_text }}
+      working-directory: remotion-video-creator
       run: |
-        INPUT_VIDEO="video.mp4"
-        if [ -n "$VIDEO_URL" ]; then
-          INPUT_VIDEO="input_video.mp4"
-        fi
-        echo "Using template: $TEMPLATE"
-        python main.py "$INPUT_VIDEO" output.mp4 \
-          --template "$TEMPLATE" \
-          --static-text "$STATIC_TEXT" \
-          --marquee-text "$MARQUEE_TEXT" \
-          --watermark-text "$WATERMARK_TEXT"
+        # Build props JSON for Remotion
+        STATIC_TEXT_ESCAPED=$(echo "$STATIC_TEXT" | sed 's/"/\\"/g')
+        MARQUEE_TEXT_ESCAPED=$(echo "$MARQUEE_TEXT" | sed 's/"/\\"/g')
+        WATERMARK_TEXT_ESCAPED=$(echo "$WATERMARK_TEXT" | sed 's/"/\\"/g')
+
+        npx remotion render \
+          --props="{\"watermark\":\"${WATERMARK_TEXT_ESCAPED}\",\"title\":\"${STATIC_TEXT_ESCAPED}\",\"scrollingText\":\"${MARQUEE_TEXT_ESCAPED}\"}" \
+          --output="../outputs/output.mp4" \
+          --codec="h264" \
+          "InstagramReel"
 
     - name: Upload as Release (mp4)
       if: github.event.inputs.output_format != 'zip'
