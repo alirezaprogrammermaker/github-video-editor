@@ -128,6 +128,7 @@ jobs:
           --codec="h264" \
           --pixel-format="yuv420p" \
           --crf="18" \
+          --concurrency=1 \
           "InstagramReel"
 
     - name: Upload as Release (mp4)
