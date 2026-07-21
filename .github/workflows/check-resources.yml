@@ -1,0 +1,22 @@
+name: Check Runner Resources
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: System Info
+        run: |
+          echo "=== CPU INFO ==="
+          lscpu | grep -E "^(Architecture|CPU\(s\)|Model name|Thread|Core)"
+          echo ""
+          echo "=== MEMORY ==="
+          free -h
+          echo ""
+          echo "=== DISK ==="
+          df -h /
+          echo ""
+          echo "=== OS ==="
+          uname -a
