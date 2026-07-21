@@ -13,7 +13,6 @@ from typing import List, Tuple
 
 from PIL import Image, ImageDraw, ImageFont
 import arabic_reshaper
-import numpy as np
 from bidi.algorithm import get_display
 
 _BUNDLED_DIR = Path(__file__).resolve().parent.parent / "fonts"
@@ -131,7 +130,7 @@ class TextImageGenerator:
     def render(self, text: str, output_path: str | Path) -> TextImage:
         """Render text to a transparent PNG and return its metadata.
 
-        Text is centered horizontally within the image by measuring actual pixels.
+        Text is centered horizontally within the image.
         """
         output_path = Path(output_path)
 
@@ -144,21 +143,21 @@ class TextImageGenerator:
         temp_draw.text((100, 50), display_text, font=self._font,
                        fill=(255, 255, 255, 255))
 
-        # Find actual text pixel bounds
-        temp_arr = np.array(temp_img)
-        white_mask = (temp_arr[:,:,0] > 200) & (temp_arr[:,:,1] > 200) & (temp_arr[:,:,2] > 200)
-        cols = np.where(np.any(white_mask, axis=0))[0]
-        rows = np.where(np.any(white_mask, axis=1))[0]
+        # Find actual text bounds using Pillow's getbbox on alpha channel
+        # Create a mask of non-transparent pixels
+        temp_alpha = temp_img.split()[3]  # Get alpha channel
+        text_bbox = temp_alpha.getbbox()
 
-        if len(cols) == 0 or len(rows) == 0:
-            # Fallback if no pixels found
+        if text_bbox:
+            actual_text_x = text_bbox[0]
+            actual_text_w = text_bbox[2] - text_bbox[0]
+            actual_text_h = text_bbox[3] - text_bbox[1]
+            # Offset from our draw position (100) to actual text start
+            actual_text_x_offset = actual_text_x - 100
+        else:
             actual_text_w = 100
             actual_text_h = 50
             actual_text_x_offset = 0
-        else:
-            actual_text_w = cols[-1] - cols[0] + 1
-            actual_text_h = rows[-1] - rows[0] + 1
-            actual_text_x_offset = cols[0] - 100  # offset from draw position
 
         padding = self._bg_padding + self._border_width + self._shadow_offset
         total_w = actual_text_w + 2 * padding
