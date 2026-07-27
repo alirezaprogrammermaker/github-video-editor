@@ -25,6 +25,17 @@ on:
       shortcode:
         description: "Video shortcode for webhook callback (optional)"
         required: false
+      composition:
+        description: "Composition to render"
+        required: false
+        default: "InstagramReel"
+        type: choice
+        options:
+          - InstagramReel
+          - YouTubeLongVideo
+      subtitle_content:
+        description: "WebVTT subtitle content (for YouTubeLongVideo composition)"
+        required: false
       output_format:
         description: "Output format: mp4 (direct download) or zip (artifact)"
         required: false
@@ -114,25 +125,61 @@ jobs:
         STATIC_TEXT: ${{ github.event.inputs.static_text }}
         MARQUEE_TEXT: ${{ github.event.inputs.marquee_text }}
         WATERMARK_TEXT: ${{ github.event.inputs.watermark_text }}
+        SUBTITLE_CONTENT: ${{ github.event.inputs.subtitle_content }}
+        COMPOSITION: ${{ github.event.inputs.composition || 'InstagramReel' }}
       working-directory: remotion-video-creator
       run: |
         # Detect video duration using ffprobe
         DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 public/video.mp4 2>/dev/null || echo "15")
         echo "Detected video duration: ${DURATION}s"
+        echo "Composition: ${COMPOSITION}"
 
-        # Build props JSON for Remotion
-        STATIC_TEXT_ESCAPED=$(echo "$STATIC_TEXT" | sed 's/"/\\"/g')
-        MARQUEE_TEXT_ESCAPED=$(echo "$MARQUEE_TEXT" | sed 's/"/\\"/g')
-        WATERMARK_TEXT_ESCAPED=$(echo "$WATERMARK_TEXT" | sed 's/"/\\"/g')
+        # Build props JSON to a file (avoids shell escaping issues)
+        if [ "$COMPOSITION" = "YouTubeLongVideo" ]; then
+          # Use Python to safely build the JSON props file
+          python3 -c "
+        import json, os
+
+        subtitle = os.environ.get('SUBTITLE_CONTENT', '')
+        duration = float('${DURATION}')
+
+        props = {
+            'videoSrc': 'video.mp4',
+            'subtitleContent': subtitle,
+            'durationInSeconds': duration,
+        }
+
+        with open('/tmp/props.json', 'w', encoding='utf-8') as f:
+            json.dump(props, f, ensure_ascii=False)
+        "
+        else
+          python3 -c "
+        import json, os
+
+        props = {
+            'watermark': os.environ.get('WATERMARK_TEXT', ''),
+            'title': os.environ.get('STATIC_TEXT', ''),
+            'scrollingText': os.environ.get('MARQUEE_TEXT', ''),
+            'videoSrc': 'video.mp4',
+            'durationInSeconds': float('${DURATION}'),
+        }
+
+        with open('/tmp/props.json', 'w', encoding='utf-8') as f:
+            json.dump(props, f, ensure_ascii=False)
+        "
+        fi
+
+        echo "Props file content:"
+        cat /tmp/props.json | python3 -c "import json,sys; d=json.load(sys.stdin); d['subtitleContent']=d.get('subtitleContent','')[:100]+'...' if len(d.get('subtitleContent',''))>100 else d.get('subtitleContent',''); print(json.dumps(d, indent=2, ensure_ascii=False))"
 
         npx remotion render \
-          --props="{\"watermark\":\"${WATERMARK_TEXT_ESCAPED}\",\"title\":\"${STATIC_TEXT_ESCAPED}\",\"scrollingText\":\"${MARQUEE_TEXT_ESCAPED}\",\"videoSrc\":\"video.mp4\",\"durationInSeconds\":${DURATION}}" \
+          --props="/tmp/props.json" \
           --output="../outputs/output.mp4" \
           --codec="h264" \
           --pixel-format="yuv420p" \
           --crf="18" \
           --concurrency=1 \
-          "InstagramReel"
+          "${COMPOSITION}"
 
     - name: Upload as Release (mp4)
       if: github.event.inputs.output_format != 'zip'
