@@ -8,6 +8,7 @@ type InstagramReelProps = {
   title?: string;
   scrollingText?: string;
   videoSrc?: string;
+  subtitleContent?: string;
   durationInSeconds?: number;
 };
 
@@ -64,6 +65,7 @@ export const RemotionRoot: React.FC = () => {
           title: "این یک عنوان شش کلمه‌ای است",
           scrollingText: "متن متحرک از چپ به راست",
           videoSrc: "video.mp4",
+          subtitleContent: SAMPLE_VTT,
         }}
       />
       <Composition

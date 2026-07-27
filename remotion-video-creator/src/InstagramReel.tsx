@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AbsoluteFill,
   Video,
@@ -12,13 +12,56 @@ import {
   cancelRender,
 } from "remotion";
 import { loadFont } from "@remotion/fonts";
+import { parseVtt, SubtitleCue } from "./utils/parseVtt";
 
 type InstagramReelProps = {
   watermark?: string;
   title?: string;
   scrollingText?: string;
   videoSrc?: string;
+  subtitleContent?: string;
 };
+
+/**
+ * Find the subtitle cue that should be displayed at the given time.
+ */
+function findActiveCue(cues: SubtitleCue[], currentTime: number): SubtitleCue | null {
+  for (const cue of cues) {
+    if (currentTime >= cue.start && currentTime < cue.end) {
+      return cue;
+    }
+  }
+  return null;
+}
+
+/**
+ * Calculate opacity for smooth subtitle transitions (fade in/out over ~0.15s).
+ */
+function getSubtitleOpacity(
+  cue: SubtitleCue | null,
+  currentTime: number,
+  fps: number,
+): number {
+  if (!cue) return 0;
+
+  const fadeDuration = Math.round(fps * 0.15) / fps;
+
+  const fadeIn = interpolate(
+    currentTime,
+    [cue.start, cue.start + fadeDuration],
+    [0, 1],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
+  );
+
+  const fadeOut = interpolate(
+    currentTime,
+    [cue.end - fadeDuration, cue.end],
+    [1, 0],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
+  );
+
+  return Math.min(fadeIn, fadeOut);
+}
 
 const fontFamily = "Vazirmatn";
 const fontWeight = "700";
@@ -67,9 +110,20 @@ export const InstagramReel: React.FC<InstagramReelProps> = ({
   title = "",
   scrollingText = "",
   videoSrc = "video.mp4",
+  subtitleContent = "",
 }) => {
   const frame = useCurrentFrame();
   const { fps, width } = useVideoConfig();
+
+  // Parse VTT subtitles
+  const cues = useMemo(() => {
+    if (!subtitleContent || !subtitleContent.trim()) return [];
+    return parseVtt(subtitleContent);
+  }, [subtitleContent]);
+
+  const currentTime = frame / fps;
+  const activeCue = findActiveCue(cues, currentTime);
+  const subtitleOpacity = getSubtitleOpacity(activeCue, currentTime, fps);
 
   // Load fonts on mount with delayRender to prevent stuttering
   const [handle] = useState(() => delayRender("Loading fonts"));
@@ -204,6 +258,42 @@ export const InstagramReel: React.FC<InstagramReelProps> = ({
             padding={16}
             nowrap
           />
+        </div>
+      )}
+
+      {/* Subtitles — bottom center, vertical-friendly style */}
+      {activeCue && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 60,
+            left: 0,
+            right: 0,
+            display: "flex",
+            justifyContent: "center",
+            opacity: subtitleOpacity,
+            padding: "0 32px",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 40,
+              fontWeight: 700,
+              fontFamily,
+              lineHeight: 1.4,
+              textAlign: "center",
+              color: "white",
+              textShadow:
+                "0 0 6px rgba(0,0,0,0.9), 2px 2px 3px rgba(0,0,0,0.9), -2px -2px 3px rgba(0,0,0,0.9), 0 2px 8px rgba(0,0,0,0.7)",
+              maxWidth: "90%",
+              whiteSpace: "pre-wrap",
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              borderRadius: 8,
+              padding: "8px 20px",
+            }}
+          >
+            {activeCue.text}
+          </div>
         </div>
       )}
     </AbsoluteFill>
