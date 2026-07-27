@@ -33,8 +33,12 @@ on:
         options:
           - InstagramReel
           - YouTubeLongVideo
+          - DynamicTemplate
       subtitle_content:
-        description: "WebVTT subtitle content (for YouTubeLongVideo composition)"
+        description: "WebVTT subtitle content"
+        required: false
+      template_config:
+        description: "Template config JSON (for DynamicTemplate composition)"
         required: false
       output_format:
         description: "Output format: mp4 (direct download) or zip (artifact)"
@@ -126,6 +130,7 @@ jobs:
         MARQUEE_TEXT: ${{ github.event.inputs.marquee_text }}
         WATERMARK_TEXT: ${{ github.event.inputs.watermark_text }}
         SUBTITLE_CONTENT: ${{ github.event.inputs.subtitle_content }}
+        TEMPLATE_CONFIG: ${{ github.event.inputs.template_config }}
         COMPOSITION: ${{ github.event.inputs.composition || 'InstagramReel' }}
       working-directory: remotion-video-creator
       run: |
@@ -135,18 +140,31 @@ jobs:
         echo "Composition: ${COMPOSITION}"
 
         # Build props JSON to a file (avoids shell escaping issues)
-        if [ "$COMPOSITION" = "YouTubeLongVideo" ]; then
-          # Use Python to safely build the JSON props file
+        if [ "$COMPOSITION" = "DynamicTemplate" ]; then
           python3 -c "
         import json, os
 
-        subtitle = os.environ.get('SUBTITLE_CONTENT', '')
-        duration = float('${DURATION}')
+        props = {
+            'templateConfig': os.environ.get('TEMPLATE_CONFIG', '{}'),
+            'videoSrc': 'video.mp4',
+            'subtitleContent': os.environ.get('SUBTITLE_CONTENT', ''),
+            'title': os.environ.get('STATIC_TEXT', ''),
+            'watermark': os.environ.get('WATERMARK_TEXT', ''),
+            'scrollingText': os.environ.get('MARQUEE_TEXT', ''),
+            'durationInSeconds': float('${DURATION}'),
+        }
+
+        with open('/tmp/props.json', 'w', encoding='utf-8') as f:
+            json.dump(props, f, ensure_ascii=False)
+        "
+        elif [ "$COMPOSITION" = "YouTubeLongVideo" ]; then
+          python3 -c "
+        import json, os
 
         props = {
             'videoSrc': 'video.mp4',
-            'subtitleContent': subtitle,
-            'durationInSeconds': duration,
+            'subtitleContent': os.environ.get('SUBTITLE_CONTENT', ''),
+            'durationInSeconds': float('${DURATION}'),
         }
 
         with open('/tmp/props.json', 'w', encoding='utf-8') as f:
