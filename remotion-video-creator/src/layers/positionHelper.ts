@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { PositionAnchor } from "./types";
 
 /**
@@ -7,8 +8,8 @@ export function resolvePosition(
   anchor: PositionAnchor = "bottom-center",
   offsetX: number = 0,
   offsetY: number = 0,
-): React.CSSProperties {
-  const base: React.CSSProperties = { position: "absolute" };
+): CSSProperties {
+  const base: CSSProperties = { position: "absolute" };
 
   // Vertical
   if (anchor.startsWith("top")) {
@@ -48,10 +49,17 @@ export function resolvePosition(
 
 /**
  * Replace {{variable}} placeholders in a string with actual values.
+ * Keys may include letters, digits, underscore, dot, and hyphen.
  */
 export function resolveVariables(
   template: string,
   vars: Record<string, string>,
 ): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? "");
+  return template.replace(/\{\{([\w.-]+)\}\}/g, (_match, key: string) => {
+    if (!(key in vars)) {
+      console.warn(`Unknown template variable: {{${key}}}`);
+      return "";
+    }
+    return vars[key];
+  });
 }

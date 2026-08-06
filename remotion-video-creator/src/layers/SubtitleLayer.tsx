@@ -1,55 +1,17 @@
-import React, { useMemo } from "react";
-import {
-  AbsoluteFill,
-  useCurrentFrame,
-  useVideoConfig,
-  interpolate,
-} from "remotion";
+import React from "react";
+import { AbsoluteFill, useCurrentFrame, useVideoConfig } from "remotion";
 import type { SubtitleLayerConfig, SubtitleMode } from "./types";
-import { parseVtt, SubtitleCue } from "../utils/parseVtt";
+import type { SubtitleCue } from "../utils/parseVtt";
+import {
+  findActiveCue,
+  getCueOpacity,
+  useSubtitleCues,
+} from "../utils/subtitles";
 import { resolvePosition } from "./positionHelper";
+import { textDirectionStyle } from "../utils/textDirection";
 
 const DEFAULT_FONT = "Vazirmatn";
 
-/**
- * Find the active cue at the current time.
- */
-function findActiveCue(
-  cues: SubtitleCue[],
-  time: number,
-): SubtitleCue | null {
-  for (const cue of cues) {
-    if (time >= cue.start && time < cue.end) return cue;
-  }
-  return null;
-}
-
-/**
- * Smooth opacity for fade in/out transitions.
- */
-function getCueOpacity(
-  cue: SubtitleCue | null,
-  time: number,
-  fps: number,
-): number {
-  if (!cue) return 0;
-  const fade = Math.round(fps * 0.15) / fps;
-  const fadeIn = interpolate(
-    time,
-    [cue.start, cue.start + fade],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
-  );
-  const fadeOut = interpolate(
-    time,
-    [cue.end - fade, cue.end],
-    [1, 0],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
-  );
-  return Math.min(fadeIn, fadeOut);
-}
-
-// --- Classic mode: white text with shadow at bottom ---
 const ClassicSubtitle: React.FC<{
   cue: SubtitleCue;
   config: SubtitleLayerConfig;
@@ -79,6 +41,7 @@ const ClassicSubtitle: React.FC<{
           backgroundColor: config.bgColor ?? "rgba(0, 0, 0, 0.55)",
           borderRadius: config.borderRadius ?? 8,
           padding: `${config.padding ?? 10}px 24px`,
+          ...textDirectionStyle(config.direction ?? "auto"),
         }}
       >
         {cue.text}
@@ -87,7 +50,6 @@ const ClassicSubtitle: React.FC<{
   );
 };
 
-// --- Karaoke mode: each word highlights as time progresses ---
 const KaraokeSubtitle: React.FC<{
   cue: SubtitleCue;
   config: SubtitleLayerConfig;
@@ -120,20 +82,22 @@ const KaraokeSubtitle: React.FC<{
           textAlign: "center",
           maxWidth: config.maxWidth ?? "90%",
           whiteSpace: "pre-wrap",
+          ...textDirectionStyle(config.direction ?? "auto"),
         }}
       >
         {words.map((word, i) => (
           <span
             key={i}
             style={{
-              color: i <= currentWordIdx
-                ? (config.highlightColor ?? "#FFFFFF")
-                : (config.color ?? "rgba(255,255,255,0.5)"),
-              textShadow: i <= currentWordIdx
-                ? `0 0 12px ${config.highlightColor ?? "#FFFFFF"}, 0 0 20px rgba(255,215,0,0.6)`
-                : "none",
-              transition: "color 0.05s, text-shadow 0.05s",
-              marginRight: "0.3em",
+              color:
+                i <= currentWordIdx
+                  ? (config.highlightColor ?? "#FFFFFF")
+                  : (config.color ?? "rgba(255,255,255,0.5)"),
+              textShadow:
+                i <= currentWordIdx
+                  ? `0 0 12px ${config.highlightColor ?? "#FFFFFF"}, 0 0 20px rgba(255,215,0,0.6)`
+                  : "none",
+              marginInlineEnd: "0.3em",
             }}
           >
             {word}
@@ -144,7 +108,6 @@ const KaraokeSubtitle: React.FC<{
   );
 };
 
-// --- Bold center mode: large bold text in the middle ---
 const BoldCenterSubtitle: React.FC<{
   cue: SubtitleCue;
   config: SubtitleLayerConfig;
@@ -174,6 +137,7 @@ const BoldCenterSubtitle: React.FC<{
           backgroundColor: config.bgColor ?? "transparent",
           borderRadius: config.borderRadius ?? 0,
           padding: config.padding ? `${config.padding}px 24px` : "0",
+          ...textDirectionStyle(config.direction ?? "auto"),
         }}
       >
         {cue.text}
@@ -182,7 +146,6 @@ const BoldCenterSubtitle: React.FC<{
   );
 };
 
-// --- Main SubtitleLayer component ---
 export const SubtitleLayer: React.FC<{ config: SubtitleLayerConfig }> = ({
   config,
 }) => {
@@ -190,11 +153,7 @@ export const SubtitleLayer: React.FC<{ config: SubtitleLayerConfig }> = ({
   const { fps } = useVideoConfig();
   const currentTime = frame / fps;
 
-  const cues = useMemo(() => {
-    if (!config.source || !config.source.trim()) return [];
-    return parseVtt(config.source);
-  }, [config.source]);
-
+  const cues = useSubtitleCues(config.source);
   const activeCue = findActiveCue(cues, currentTime);
   const opacity = getCueOpacity(activeCue, currentTime, fps);
   const mode: SubtitleMode = config.mode ?? "classic";

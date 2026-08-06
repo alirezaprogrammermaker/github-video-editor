@@ -1,5 +1,7 @@
 name: Video Edit
 
+run-name: "edit ${{ inputs.shortcode || github.run_id }}"
+
 on:
   workflow_dispatch:
     inputs:
@@ -56,23 +58,31 @@ env:
 jobs:
   edit:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     permissions:
-      contents: write
+      contents: read
 
     steps:
     - uses: actions/checkout@v4
-
-    - name: Install ffmpeg
-      run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: "20"
-        cache: "npm"
-        cache-dependency-path: remotion-video-creator/package-lock.json
+
+    - name: Cache Remotion dependencies
+      id: remotion-cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          remotion-video-creator/node_modules
+          remotion-video-creator/.remotion
+        key: remotion-${{ runner.os }}-${{ hashFiles('remotion-video-creator/package-lock.json') }}
+        restore-keys: |
+          remotion-${{ runner.os }}-
 
     - name: Install Remotion dependencies
+      if: steps.remotion-cache.outputs.cache-hit != 'true'
       working-directory: remotion-video-creator
       run: npm ci
 
@@ -81,38 +91,53 @@ jobs:
       env:
         VIDEO_URL: ${{ github.event.inputs.video_url }}
       run: |
+        set -euo pipefail
         echo "Downloading video from URL..."
         echo "URL length: ${#VIDEO_URL} characters"
 
-        # Save URL to file to avoid shell escaping issues
-        echo "$VIDEO_URL" > /tmp/video_url.txt
+        case "$VIDEO_URL" in
+          https://*) ;;
+          *)
+            echo "ERROR: Only https URLs are allowed"
+            exit 1
+            ;;
+        esac
 
-        # Try download with curl using URL from file
-        curl -L --retry 3 --max-time 120 \
+        # Save URL to file to avoid shell escaping issues
+        printf '%s' "$VIDEO_URL" > /tmp/video_url.txt
+
+        curl -fsSL --retry 3 --retry-delay 2 --max-time 120 --max-filesize 209715200 \
           -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
           -o remotion-video-creator/public/input_video.mp4 \
           "$(cat /tmp/video_url.txt)"
 
         echo "Downloaded video size: $(du -h remotion-video-creator/public/input_video.mp4 | cut -f1)"
         echo "File type: $(file remotion-video-creator/public/input_video.mp4)"
-        echo "First 10 bytes (hex):"
-        xxd -l 10 remotion-video-creator/public/input_video.mp4 || true
 
     - name: Validate video file
       if: github.event.inputs.video_url != ''
+      working-directory: remotion-video-creator
       run: |
+        set -euo pipefail
         echo "Validating downloaded video file..."
-        FILE_SIZE=$(wc -c < remotion-video-creator/public/input_video.mp4)
+        FILE_SIZE=$(wc -c < public/input_video.mp4)
         echo "File size: $FILE_SIZE bytes"
         if [ "$FILE_SIZE" -lt 1000 ]; then
           echo "ERROR: Downloaded file is too small, likely not a valid video"
-          cat remotion-video-creator/public/input_video.mp4
           exit 1
         fi
-        ffprobe -v error -show_format -show_streams remotion-video-creator/public/input_video.mp4 || echo "Warning: ffprobe validation failed"
+        STREAM_TYPE=$(npx remotion ffprobe -v error -select_streams v:0 \
+          -show_entries stream=codec_type -of default=noprint_wrappers=1:nokey=1 \
+          public/input_video.mp4)
+        echo "Primary stream type: ${STREAM_TYPE:-none}"
+        if [ "$STREAM_TYPE" != "video" ]; then
+          echo "ERROR: No video stream detected in downloaded file"
+          exit 1
+        fi
 
     - name: Prepare video file
       run: |
+        set -euo pipefail
         mkdir -p outputs
         cd remotion-video-creator/public
         if [ -f "input_video.mp4" ]; then
@@ -134,8 +159,13 @@ jobs:
         COMPOSITION: ${{ github.event.inputs.composition || 'InstagramReel' }}
       working-directory: remotion-video-creator
       run: |
-        # Detect video duration using ffprobe
-        DURATION=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 public/video.mp4 2>/dev/null || echo "15")
+        set -euo pipefail
+        # Detect video duration using Remotion's bundled ffprobe
+        DURATION=$(npx remotion ffprobe -v error -show_entries format=duration \
+          -of default=noprint_wrappers=1:nokey=1 public/video.mp4 2>/dev/null || echo "15")
+        if [ -z "$DURATION" ] || [ "$DURATION" = "N/A" ]; then
+          DURATION=15
+        fi
         echo "Detected video duration: ${DURATION}s"
         echo "Composition: ${COMPOSITION}"
 
@@ -196,20 +226,10 @@ jobs:
           --codec="h264" \
           --pixel-format="yuv420p" \
           --crf="18" \
-          --concurrency=1 \
+          --concurrency=4 \
           "${COMPOSITION}"
 
-    - name: Upload as Release (mp4)
-      if: github.event.inputs.output_format != 'zip'
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: video-${{ github.run_number }}
-        name: Video Output #${{ github.run_number }}
-        files: outputs/output.mp4
-        make_latest: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+    # Optional debug path only — successful delivery uses private R2 keys, not GitHub Releases.
     - name: Upload as Artifact (zip)
       if: github.event.inputs.output_format == 'zip'
       uses: actions/upload-artifact@v4
@@ -218,27 +238,111 @@ jobs:
         path: outputs/output.mp4
         retention-days: 7
 
-    - name: Notify webhook (success)
-      if: success() && github.event.inputs.webhook_url
+    - name: Upload output to R2
+      if: success() && github.event.inputs.output_format != 'zip'
       env:
-        WEBHOOK_URL: ${{ github.event.inputs.webhook_url }}
+        R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+        R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+        R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        R2_PUBLIC_BASE_URL: ${{ secrets.R2_PUBLIC_BASE_URL }}
         SHORTCODE: ${{ github.event.inputs.shortcode }}
-        TAG: video-${{ github.run_number }}
-        OUTPUT_URL: https://github.com/${{ github.repository }}/releases/download/video-${{ github.run_number }}/output.mp4
+        RUN_ID: ${{ github.run_id }}
+        # aws CLI reads these standard names
+        AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: auto
+        AWS_EC2_METADATA_DISABLED: "true"
       run: |
-        echo "Notifying webhook: $WEBHOOK_URL"
-        curl -s -X POST "$WEBHOOK_URL" \
-          -H "Content-Type: application/json" \
-          -d "{\"shortcode\":\"$SHORTCODE\",\"status\":\"success\",\"tag\":\"$TAG\",\"output_url\":\"$OUTPUT_URL\",\"run_number\":\"${{ github.run_number }}\"}" || true
+        set -euo pipefail
+        missing=0
+        for v in R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET R2_PUBLIC_BASE_URL; do
+          if [ -z "${!v}" ]; then
+            echo "ERROR: GitHub secret $v is not set. Configure R2 credentials before rendering."
+            missing=1
+          fi
+        done
+        if [ "$missing" -ne 0 ]; then
+          exit 1
+        fi
 
-    - name: Notify webhook (failure)
-      if: failure() && github.event.inputs.webhook_url
+        if [ ! -f outputs/output.mp4 ]; then
+          echo "ERROR: outputs/output.mp4 not found"
+          exit 1
+        fi
+
+        JOB_KEY=$(printf '%s' "${SHORTCODE:-run-${RUN_ID}}" | tr -cd 'A-Za-z0-9_-' | cut -c1-64)
+        if [ -z "$JOB_KEY" ]; then
+          JOB_KEY="run-${RUN_ID}"
+        fi
+        RAND=$(openssl rand -hex 16)
+        OBJECT_KEY="renders/${JOB_KEY}/${RAND}.mp4"
+        ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+
+        echo "Uploading to s3://${R2_BUCKET}/${OBJECT_KEY}"
+        aws s3 cp outputs/output.mp4 "s3://${R2_BUCKET}/${OBJECT_KEY}" \
+          --endpoint-url "$ENDPOINT" \
+          --content-type "video/mp4" \
+          --no-progress
+
+        BASE="${R2_PUBLIC_BASE_URL%/}"
+        OUTPUT_URL="${BASE}/${OBJECT_KEY}"
+        echo "OUTPUT_URL=${OUTPUT_URL}" >> "$GITHUB_ENV"
+        echo "Uploaded object key: ${OBJECT_KEY}"
+
+    - name: Notify webhook
+      if: always() && github.event.inputs.webhook_url != ''
       env:
         WEBHOOK_URL: ${{ github.event.inputs.webhook_url }}
         SHORTCODE: ${{ github.event.inputs.shortcode }}
         TAG: video-${{ github.run_number }}
+        RUN_NUMBER: ${{ github.run_number }}
+        OUTPUT_URL: ${{ env.OUTPUT_URL }}
+        OUTPUT_FORMAT: ${{ github.event.inputs.output_format }}
+        CALLBACK_SECRET: ${{ secrets.WORKFLOW_CALLBACK_SECRET }}
+        JOB_STATUS: ${{ job.status }}
       run: |
-        echo "Notifying webhook of failure: $WEBHOOK_URL"
-        curl -s -X POST "$WEBHOOK_URL" \
+        set -euo pipefail
+        echo "Notifying webhook: $WEBHOOK_URL (job status: $JOB_STATUS)"
+        if [ -z "$CALLBACK_SECRET" ]; then
+          echo "ERROR: WORKFLOW_CALLBACK_SECRET is not set; the callback would be rejected."
+          exit 1
+        fi
+
+        if [ "$JOB_STATUS" = "success" ] && [ "${OUTPUT_FORMAT:-mp4}" != "zip" ]; then
+          if [ -z "${OUTPUT_URL:-}" ]; then
+            echo "ERROR: OUTPUT_URL is empty after R2 upload; refusing to notify with a missing media URL."
+            exit 1
+          fi
+        fi
+
+        python3 -c "
+        import json, os
+        job_status = os.environ.get('JOB_STATUS', 'failure')
+        status = 'success' if job_status == 'success' else 'failure'
+        payload = {
+            'shortcode': os.environ.get('SHORTCODE', ''),
+            'status': status,
+            'tag': os.environ.get('TAG', ''),
+            'run_number': os.environ.get('RUN_NUMBER', ''),
+        }
+        if status == 'success':
+            output_url = os.environ.get('OUTPUT_URL', '').strip()
+            if output_url:
+                payload['output_url'] = output_url
+            else:
+                payload['status'] = 'failure'
+                payload['error'] = 'Workflow succeeded but output_url was not produced (R2 upload required)'
+        else:
+            payload['error'] = f'Workflow {job_status}'
+        with open('/tmp/callback.json', 'w', encoding='utf-8') as f:
+            json.dump(payload, f, ensure_ascii=False)
+        "
+
+        SIGNATURE=$(openssl dgst -sha256 -hmac "$CALLBACK_SECRET" -hex < /tmp/callback.json | awk '{print $NF}')
+
+        curl -fsS --retry 3 --retry-delay 2 --retry-all-errors \
+          -X POST "$WEBHOOK_URL" \
           -H "Content-Type: application/json" \
-          -d "{\"shortcode\":\"$SHORTCODE\",\"status\":\"failure\",\"tag\":\"$TAG\",\"error\":\"Workflow failed\"}" || true
+          -H "X-Signature-256: sha256=$SIGNATURE" \
+          --data-binary @/tmp/callback.json

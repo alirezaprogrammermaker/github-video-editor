@@ -1,0 +1,51 @@
+name: Cleanup Releases
+
+on:
+  schedule:
+    # 03:00 UTC daily (06:30 Tehran)
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only report what would be deleted"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cleanup-releases
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Prune old releases
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        REPO: ${{ github.repository }}
+        DRY_RUN: ${{ github.event.inputs.dry_run }}
+      run: |
+        set -euo pipefail
+        if [ ! -f cleanup_releases.py ]; then
+          echo "::error::cleanup_releases.py not found in the repository"
+          exit 1
+        fi
+        ARGS=(--repo "$REPO" --keep 30 --min-age-hours 336 --delete-tags --yes)
+        if [ "${DRY_RUN:-false}" = "true" ]; then
+          ARGS+=(--dry-run)
+        fi
+        python3 cleanup_releases.py "${ARGS[@]}"

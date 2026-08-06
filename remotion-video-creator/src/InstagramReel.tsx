@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   AbsoluteFill,
-  Video,
+  OffthreadVideo,
   staticFile,
   useCurrentFrame,
   useVideoConfig,
@@ -12,61 +12,20 @@ import {
   cancelRender,
 } from "remotion";
 import { loadFont } from "@remotion/fonts";
-import { parseVtt, SubtitleCue } from "./utils/parseVtt";
-
-type InstagramReelProps = {
-  watermark?: string;
-  title?: string;
-  scrollingText?: string;
-  videoSrc?: string;
-  subtitleContent?: string;
-};
-
-/**
- * Find the subtitle cue that should be displayed at the given time.
- */
-function findActiveCue(cues: SubtitleCue[], currentTime: number): SubtitleCue | null {
-  for (const cue of cues) {
-    if (currentTime >= cue.start && currentTime < cue.end) {
-      return cue;
-    }
-  }
-  return null;
-}
-
-/**
- * Calculate opacity for smooth subtitle transitions (fade in/out over ~0.15s).
- */
-function getSubtitleOpacity(
-  cue: SubtitleCue | null,
-  currentTime: number,
-  fps: number,
-): number {
-  if (!cue) return 0;
-
-  const fadeDuration = Math.round(fps * 0.15) / fps;
-
-  const fadeIn = interpolate(
-    currentTime,
-    [cue.start, cue.start + fadeDuration],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
-  );
-
-  const fadeOut = interpolate(
-    currentTime,
-    [cue.end - fadeDuration, cue.end],
-    [1, 0],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
-  );
-
-  return Math.min(fadeIn, fadeOut);
-}
+import { measureText } from "@remotion/layout-utils";
+import type { InstagramReelProps } from "./schemas";
+import {
+  findActiveCue,
+  getCueOpacity,
+  useSubtitleCues,
+} from "./utils/subtitles";
+import { textDirectionStyle } from "./utils/textDirection";
 
 const fontFamily = "Vazirmatn";
 const fontWeight = "700";
+const MARQUEE_FONT_SIZE = 44;
+const MARQUEE_PADDING = 16;
 
-// Simple text box with auto-expanding background
 const TikTokTextBox: React.FC<{
   text: string;
   fontSize: number;
@@ -75,7 +34,15 @@ const TikTokTextBox: React.FC<{
   borderRadius?: number;
   padding?: number;
   nowrap?: boolean;
-}> = ({ text, fontSize, color, backgroundColor, borderRadius = 20, padding = 20, nowrap = false }) => {
+}> = ({
+  text,
+  fontSize,
+  color,
+  backgroundColor,
+  borderRadius = 20,
+  padding = 20,
+  nowrap = false,
+}) => {
   if (!text.trim()) return null;
 
   return (
@@ -97,6 +64,7 @@ const TikTokTextBox: React.FC<{
           textAlign: "center",
           color,
           whiteSpace: nowrap ? "nowrap" : "pre-wrap",
+          ...textDirectionStyle("auto"),
         }}
       >
         {text}
@@ -113,20 +81,15 @@ export const InstagramReel: React.FC<InstagramReelProps> = ({
   subtitleContent = "",
 }) => {
   const frame = useCurrentFrame();
-  const { fps, width } = useVideoConfig();
+  const { fps, width, durationInFrames } = useVideoConfig();
 
-  // Parse VTT subtitles
-  const cues = useMemo(() => {
-    if (!subtitleContent || !subtitleContent.trim()) return [];
-    return parseVtt(subtitleContent);
-  }, [subtitleContent]);
-
+  const cues = useSubtitleCues(subtitleContent);
   const currentTime = frame / fps;
   const activeCue = findActiveCue(cues, currentTime);
-  const subtitleOpacity = getSubtitleOpacity(activeCue, currentTime, fps);
+  const subtitleOpacity = getCueOpacity(activeCue, currentTime, fps);
 
-  // Load fonts on mount with delayRender to prevent stuttering
   const [handle] = useState(() => delayRender("Loading fonts"));
+  const [fontsReady, setFontsReady] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -141,60 +104,99 @@ export const InstagramReel: React.FC<InstagramReelProps> = ({
         weight: "700",
       }),
     ])
-      .then(() => continueRender(handle))
+      .then(() => {
+        setFontsReady(true);
+        continueRender(handle);
+      })
       .catch((err) => cancelRender(err));
   }, [handle]);
 
-  // Title timing: show for 3 seconds (90 frames)
-  const titleDuration = 3 * fps;
-  const titleOpacity = interpolate(frame, [0, titleDuration - 15, titleDuration], [1, 1, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
+  // Title timing: show for up to 3s, then marquee starts (matches workflow intent)
+  const titleDuration = Math.min(3 * fps, durationInFrames);
+  const marqueeStart = title.trim() !== "" ? titleDuration : 0;
 
-  // Scrolling text timing: starts from beginning, exits by end of video
-  const { durationInFrames } = useVideoConfig();
-  const scrollDuration = durationInFrames;
-  const scrollProgress = interpolate(
-    frame,
-    [0, scrollDuration],
+  const titleOpacity =
+    titleDuration <= 1
+      ? interpolate(frame, [0, 1], [1, 0], {
+          extrapolateLeft: "clamp",
+          extrapolateRight: "clamp",
+        })
+      : interpolate(
+          frame,
+          [0, Math.max(titleDuration - 15, 1), titleDuration],
+          [1, 1, 0],
+          {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          },
+        );
+
+  const textWidth = useMemo(() => {
+    if (!scrollingText.trim() || !fontsReady) {
+      return scrollingText.length * 20;
+    }
+    const measured = measureText({
+      text: scrollingText,
+      fontFamily,
+      fontSize: MARQUEE_FONT_SIZE,
+      fontWeight,
+    });
+    return measured.width + MARQUEE_PADDING * 1.5 * 2;
+  }, [scrollingText, fontsReady]);
+
+  const marqueeActive = marqueeStart < durationInFrames;
+  const marqueeEnd = Math.max(durationInFrames, marqueeStart + 1);
+  const scrollProgress = marqueeActive
+    ? interpolate(frame, [marqueeStart, marqueeEnd], [0, 1], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      })
+    : 0;
+
+  const scrollX = interpolate(
+    scrollProgress,
     [0, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-    }
+    [-textWidth - 50, width + 100],
   );
 
-  const textWidth = scrollingText.length * 35;
-  const scrollX = interpolate(scrollProgress, [0, 1], [-textWidth - 50, width + 100]);
+  const marqueeSpan = marqueeEnd - marqueeStart;
+  const scrollOpacity = !marqueeActive
+    ? 0
+    : marqueeSpan <= 30
+      ? interpolate(frame, [marqueeStart, marqueeEnd], [0, 1], {
+          extrapolateLeft: "clamp",
+          extrapolateRight: "clamp",
+        })
+      : interpolate(
+          frame,
+          [
+            marqueeStart,
+            marqueeStart + 15,
+            marqueeEnd - 30,
+            marqueeEnd - 5,
+          ],
+          [0, 1, 1, 0],
+          {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          },
+        );
 
-  const scrollOpacity = interpolate(
-    frame,
-    [0, 15, scrollDuration - 30, scrollDuration - 5],
-    [0, 1, 1, 0],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    }
-  );
+  const showScrollingText =
+    scrollingText.trim() !== "" && frame >= marqueeStart;
 
-  const showScrollingText = scrollingText.trim() !== "" && frame >= 0;
-
-  // Watermark fade in
   const watermarkOpacity = interpolate(frame, [0, 20], [0, 1], {
     extrapolateRight: "clamp",
   });
 
   return (
     <AbsoluteFill style={{ overflow: "hidden", backgroundColor: "black" }}>
-      <Video
+      <OffthreadVideo
         src={staticFile(videoSrc)}
-        loop
         style={{ width: "100%", height: "100%", objectFit: "cover" }}
       />
 
-      {/* Watermark - top right */}
       {watermark.trim() !== "" && (
         <div
           style={{
@@ -215,7 +217,6 @@ export const InstagramReel: React.FC<InstagramReelProps> = ({
         </div>
       )}
 
-      {/* Title - bottom center with TikTok style */}
       {title.trim() !== "" && (
         <div
           style={{
@@ -239,7 +240,6 @@ export const InstagramReel: React.FC<InstagramReelProps> = ({
         </div>
       )}
 
-      {/* Scrolling text - red background with TikTok style */}
       {showScrollingText && (
         <div
           style={{
@@ -251,17 +251,16 @@ export const InstagramReel: React.FC<InstagramReelProps> = ({
         >
           <TikTokTextBox
             text={scrollingText}
-            fontSize={44}
+            fontSize={MARQUEE_FONT_SIZE}
             color="white"
             backgroundColor="#dc2626"
             borderRadius={12}
-            padding={16}
+            padding={MARQUEE_PADDING}
             nowrap
           />
         </div>
       )}
 
-      {/* Subtitles — bottom center, vertical-friendly style */}
       {activeCue && (
         <div
           style={{
@@ -290,6 +289,7 @@ export const InstagramReel: React.FC<InstagramReelProps> = ({
               backgroundColor: "rgba(0, 0, 0, 0.5)",
               borderRadius: 8,
               padding: "8px 20px",
+              ...textDirectionStyle("auto"),
             }}
           >
             {activeCue.text}

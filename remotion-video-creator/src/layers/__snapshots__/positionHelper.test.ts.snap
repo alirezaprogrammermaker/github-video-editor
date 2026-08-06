@@ -1,0 +1,86 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`resolvePosition > snapshots bottom-center 1`] = `
+{
+  "bottom": 24,
+  "display": "flex",
+  "justifyContent": "center",
+  "left": 0,
+  "paddingLeft": 12,
+  "paddingRight": 12,
+  "position": "absolute",
+  "right": 0,
+}
+`;
+
+exports[`resolvePosition > snapshots bottom-left 1`] = `
+{
+  "bottom": 24,
+  "left": 12,
+  "position": "absolute",
+}
+`;
+
+exports[`resolvePosition > snapshots bottom-right 1`] = `
+{
+  "bottom": 24,
+  "position": "absolute",
+  "right": 12,
+}
+`;
+
+exports[`resolvePosition > snapshots center 1`] = `
+{
+  "left": "calc(50% + 12px)",
+  "position": "absolute",
+  "top": "50%",
+  "transform": "translate(-50%, calc(-50% + 24px))",
+}
+`;
+
+exports[`resolvePosition > snapshots center-left 1`] = `
+{
+  "left": 12,
+  "position": "absolute",
+  "top": "50%",
+  "transform": "translateY(calc(-50% + 24px))",
+}
+`;
+
+exports[`resolvePosition > snapshots center-right 1`] = `
+{
+  "position": "absolute",
+  "right": 12,
+  "top": "50%",
+  "transform": "translateY(calc(-50% + 24px))",
+}
+`;
+
+exports[`resolvePosition > snapshots top-center 1`] = `
+{
+  "display": "flex",
+  "justifyContent": "center",
+  "left": 0,
+  "paddingLeft": 12,
+  "paddingRight": 12,
+  "position": "absolute",
+  "right": 0,
+  "top": 24,
+}
+`;
+
+exports[`resolvePosition > snapshots top-left 1`] = `
+{
+  "left": 12,
+  "position": "absolute",
+  "top": 24,
+}
+`;
+
+exports[`resolvePosition > snapshots top-right 1`] = `
+{
+  "position": "absolute",
+  "right": 12,
+  "top": 24,
+}
+`;

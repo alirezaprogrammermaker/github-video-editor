@@ -1,24 +1,15 @@
-import "./index.css";
 import { Composition, CalculateMetadataFunction } from "remotion";
 import { InstagramReel } from "./InstagramReel";
 import { YouTubeLongVideo } from "./YouTubeLongVideo";
 import { DynamicTemplate } from "./DynamicTemplate";
-import type { DynamicTemplateProps } from "./layers/types";
-
-type InstagramReelProps = {
-  watermark?: string;
-  title?: string;
-  scrollingText?: string;
-  videoSrc?: string;
-  subtitleContent?: string;
-  durationInSeconds?: number;
-};
-
-type YouTubeLongVideoProps = {
-  videoSrc?: string;
-  subtitleContent?: string;
-  durationInSeconds?: number;
-};
+import {
+  dynamicTemplateSchema,
+  instagramReelSchema,
+  youTubeLongVideoSchema,
+  type DynamicTemplateProps,
+  type InstagramReelProps,
+  type YouTubeLongVideoProps,
+} from "./schemas";
 
 const FPS = 30;
 
@@ -65,10 +56,38 @@ When rendered via GitHub Actions`;
 const SAMPLE_TEMPLATE = JSON.stringify({
   name: "Classic Reel Preview",
   layers: [
-    { type: "video", source: "{{videoSrc}}", objectFit: "cover", loop: true },
-    { type: "subtitle", source: "{{subtitleContent}}", mode: "classic", fontSize: 44, offsetY: 80 },
-    { type: "text", content: "{{watermark}}", fontSize: 36, color: "white", bgColor: "rgba(0,0,0,0.6)", position: "top-right", offsetX: 24, offsetY: 24, borderRadius: 20, padding: 14 },
-    { type: "text", content: "{{title}}", fontSize: 52, color: "black", bgColor: "rgba(255,255,255,0.95)", position: "bottom-center", offsetY: 160, duration: 3, borderRadius: 14, padding: 18 },
+    { type: "video", source: "{{videoSrc}}", objectFit: "cover" },
+    {
+      type: "subtitle",
+      source: "{{subtitleContent}}",
+      mode: "classic",
+      fontSize: 44,
+      offsetY: 80,
+    },
+    {
+      type: "text",
+      content: "{{watermark}}",
+      fontSize: 36,
+      color: "white",
+      bgColor: "rgba(0,0,0,0.6)",
+      position: "top-right",
+      offsetX: 24,
+      offsetY: 24,
+      borderRadius: 20,
+      padding: 14,
+    },
+    {
+      type: "text",
+      content: "{{title}}",
+      fontSize: 52,
+      color: "black",
+      bgColor: "rgba(255,255,255,0.95)",
+      position: "bottom-center",
+      offsetY: 160,
+      duration: 3,
+      borderRadius: 14,
+      padding: 18,
+    },
   ],
 });
 
@@ -78,6 +97,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="InstagramReel"
         component={InstagramReel}
+        schema={instagramReelSchema}
         calculateMetadata={calculateInstagramMetadata}
         fps={FPS}
         width={720}
@@ -93,6 +113,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="YouTubeLongVideo"
         component={YouTubeLongVideo}
+        schema={youTubeLongVideoSchema}
         calculateMetadata={calculateYouTubeMetadata}
         fps={FPS}
         width={1920}
@@ -105,6 +126,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="DynamicTemplate"
         component={DynamicTemplate}
+        schema={dynamicTemplateSchema}
         calculateMetadata={calculateDynamicMetadata}
         fps={FPS}
         width={720}

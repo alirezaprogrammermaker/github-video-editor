@@ -1,5 +1,5 @@
 import React from "react";
-import { AbsoluteFill, Img, staticFile } from "remotion";
+import { AbsoluteFill, Img, staticFile, cancelRender } from "remotion";
 import type { ImageLayerConfig } from "./types";
 import { resolvePosition } from "./positionHelper";
 
@@ -14,8 +14,15 @@ export const ImageLayer: React.FC<{ config: ImageLayerConfig }> = ({
     config.offsetY ?? 24,
   );
 
-  // Support both staticFile paths and external URLs
-  const src = config.source.startsWith("http")
+  if (config.source.startsWith("http://")) {
+    cancelRender(
+      new Error(
+        `ImageLayer only allows https:// URLs (got ${JSON.stringify(config.source)})`,
+      ),
+    );
+  }
+
+  const src = config.source.startsWith("https://")
     ? config.source
     : staticFile(config.source);
 

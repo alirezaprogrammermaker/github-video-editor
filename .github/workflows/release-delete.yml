@@ -7,18 +7,44 @@ on:
         description: "Tag name of the release to delete (e.g. video-42)"
         required: true
 
+permissions:
+  contents: write
+
 jobs:
   delete:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: write
 
+    defaults:
+      run:
+        shell: bash
+
     steps:
+    - name: Validate tag name
+      env:
+        TAG: ${{ github.event.inputs.tag_name }}
+      run: |
+        set -euo pipefail
+        if [ -z "${TAG:-}" ]; then
+          echo "::error::tag_name is empty"
+          exit 1
+        fi
+        if ! printf '%s' "$TAG" | grep -Eq '^video-[0-9]+$'; then
+          echo "::error::tag_name '$TAG' does not match the expected pattern 'video-<number>'"
+          exit 1
+        fi
+        echo "Tag validated: $TAG"
+
     - name: Delete release and tag
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        REPO: ${{ github.repository }}
         TAG: ${{ github.event.inputs.tag_name }}
       run: |
+        set -euo pipefail
         echo "Deleting release with tag: $TAG"
-        gh release delete "$TAG" --yes --cleanup-tag
-        echo "Release '$TAG' deleted successfully."
+        gh release delete "$TAG" --yes --repo "$REPO" || echo "release $TAG not found, skipping"
+        gh api -X DELETE "repos/$REPO/git/refs/tags/$TAG" --silent || echo "tag $TAG not found, skipping"
+        echo "Release '$TAG' cleanup completed."

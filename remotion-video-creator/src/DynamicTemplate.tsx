@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AbsoluteFill,
   staticFile,
@@ -10,7 +10,8 @@ import {
   interpolate,
 } from "remotion";
 import { loadFont } from "@remotion/fonts";
-import type { DynamicTemplateProps, TemplateConfig, LayerConfig } from "./layers/types";
+import type { DynamicTemplateProps, LayerConfig } from "./layers/types";
+import { templateConfigSchema } from "./schemas";
 import { resolveVariables } from "./layers/positionHelper";
 import { VideoLayer } from "./layers/VideoLayer";
 import { SubtitleLayer } from "./layers/SubtitleLayer";
@@ -19,12 +20,9 @@ import { ImageLayer } from "./layers/ImageLayer";
 
 /**
  * Resolve opacity for a layer based on its time range and fade settings.
+ * Layer-specific timing (e.g. text `duration`, subtitle cue fades) stays in the layer.
  */
-function resolveLayerOpacity(
-  layer: LayerConfig,
-  currentTime: number,
-  fps: number,
-): number {
+function resolveLayerOpacity(layer: LayerConfig, currentTime: number): number {
   const start = layer.startTime ?? 0;
   const end = layer.endTime ?? Infinity;
   const fadeIn = layer.fadeIn ?? 0;
@@ -41,7 +39,7 @@ function resolveLayerOpacity(
     });
   }
 
-  if (fadeOut > 0 && currentTime > end - fadeOut) {
+  if (fadeOut > 0 && Number.isFinite(end) && currentTime > end - fadeOut) {
     opacity *= interpolate(currentTime, [end - fadeOut, end], [1, 0], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
@@ -58,25 +56,52 @@ const LayerRenderer: React.FC<{
   layer: LayerConfig;
   variables: Record<string, string>;
   currentTime: number;
-  fps: number;
-}> = ({ layer, variables, currentTime, fps }) => {
-  const opacity = resolveLayerOpacity(layer, currentTime, fps);
+}> = ({ layer, variables, currentTime }) => {
+  const opacity = resolveLayerOpacity(layer, currentTime);
   if (opacity <= 0) return null;
 
   let content: React.ReactNode = null;
 
   switch (layer.type) {
     case "video":
-      content = <VideoLayer config={{ ...layer, source: resolveVariables(layer.source, variables) }} />;
+      content = (
+        <VideoLayer
+          config={{
+            ...layer,
+            source: resolveVariables(layer.source, variables),
+          }}
+        />
+      );
       break;
     case "subtitle":
-      content = <SubtitleLayer config={{ ...layer, source: resolveVariables(layer.source, variables) }} />;
+      content = (
+        <SubtitleLayer
+          config={{
+            ...layer,
+            source: resolveVariables(layer.source, variables),
+          }}
+        />
+      );
       break;
     case "text":
-      content = <TextLayer config={{ ...layer, content: resolveVariables(layer.content, variables) }} />;
+      content = (
+        <TextLayer
+          config={{
+            ...layer,
+            content: resolveVariables(layer.content, variables),
+          }}
+        />
+      );
       break;
     case "image":
-      content = <ImageLayer config={{ ...layer, source: resolveVariables(layer.source, variables) }} />;
+      content = (
+        <ImageLayer
+          config={{
+            ...layer,
+            source: resolveVariables(layer.source, variables),
+          }}
+        />
+      );
       break;
     default:
       return null;
@@ -86,10 +111,7 @@ const LayerRenderer: React.FC<{
 };
 
 /**
- * DynamicTemplate — A Remotion composition that renders video based on a JSON template config.
- *
- * The template defines layers (video, subtitle, text, image) with styling and positioning.
- * Dynamic variables ({{videoSrc}}, {{subtitleContent}}, etc.) are replaced at render time.
+ * DynamicTemplate — Remotion composition driven by a JSON template config.
  */
 export const DynamicTemplate: React.FC<DynamicTemplateProps> = ({
   templateConfig,
@@ -104,34 +126,47 @@ export const DynamicTemplate: React.FC<DynamicTemplateProps> = ({
   const { fps } = useVideoConfig();
   const currentTime = frame / fps;
 
-  // Load fonts
   const [handle] = useState(() => delayRender("Loading fonts"));
   useEffect(() => {
     Promise.all([
-      loadFont({ family: "Vazirmatn", url: staticFile("Vazirmatn-Regular.ttf"), weight: "400" }),
-      loadFont({ family: "Vazirmatn", url: staticFile("Vazirmatn-Bold.ttf"), weight: "700" }),
+      loadFont({
+        family: "Vazirmatn",
+        url: staticFile("Vazirmatn-Regular.ttf"),
+        weight: "400",
+      }),
+      loadFont({
+        family: "Vazirmatn",
+        url: staticFile("Vazirmatn-Bold.ttf"),
+        weight: "700",
+      }),
     ])
       .then(() => continueRender(handle))
       .catch((err) => cancelRender(err));
   }, [handle]);
 
-  // Parse template config
-  let config: TemplateConfig;
-  try {
-    config = JSON.parse(templateConfig);
-  } catch {
-    return (
-      <AbsoluteFill
-        style={{ backgroundColor: "black", justifyContent: "center", alignItems: "center" }}
-      >
-        <div style={{ color: "red", fontSize: 32, fontFamily: "monospace" }}>
-          Invalid template config JSON
-        </div>
-      </AbsoluteFill>
-    );
-  }
+  const config = useMemo(() => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(templateConfig);
+    } catch (err) {
+      return cancelRender(
+        new Error(
+          `Invalid template config JSON: ${err instanceof Error ? err.message : String(err)}`,
+        ),
+      );
+    }
 
-  // Build variables map
+    const result = templateConfigSchema.safeParse(parsed);
+    if (!result.success) {
+      return cancelRender(
+        new Error(
+          `Invalid template config: ${result.error.issues.map((i) => i.message).join("; ")}`,
+        ),
+      );
+    }
+    return result.data;
+  }, [templateConfig]);
+
   const allVars: Record<string, string> = {
     videoSrc,
     subtitleContent,
@@ -149,7 +184,6 @@ export const DynamicTemplate: React.FC<DynamicTemplateProps> = ({
           layer={layer}
           variables={allVars}
           currentTime={currentTime}
-          fps={fps}
         />
       ))}
     </AbsoluteFill>

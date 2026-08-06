@@ -9,6 +9,16 @@ __pycache__/
 
 # Environment
 .env
+.env.*
+
+# Scripts holding credentials
+trigger_*.ps1
+workflow_dispatch.json
+
+# Scratch / unrelated experiments
+test-cloudflare-models/
+.ai_checkpoints/
+message*.txt
 
 # Logs
 logs/

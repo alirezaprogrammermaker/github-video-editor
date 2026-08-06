@@ -1,54 +1,82 @@
-# Remotion video
+# remotion-video-creator
 
-<p align="center">
-  <a href="https://github.com/remotion-dev/logo">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/remotion-dev/logo/raw/main/animated-logo-banner-dark.apng">
-      <img alt="Animated Remotion Logo" src="https://github.com/remotion-dev/logo/raw/main/animated-logo-banner-light.gif">
-    </picture>
-  </a>
-</p>
+Remotion compositions used by GitHub Actions to render Instagram Reels and YouTube long-form videos with Persian (RTL) overlays, marquee text, and WebVTT subtitles.
 
-Welcome to your Remotion project!
+## Compositions
+
+| ID | Size | Purpose |
+| --- | --- | --- |
+| `InstagramReel` | 720×1280 | Vertical reel with watermark, title, marquee, subtitles |
+| `YouTubeLongVideo` | 1920×1080 | Landscape video with subtitles |
+| `DynamicTemplate` | 720×1280 (default) | Layer-based template from a JSON config (`templateConfig`) |
+
+Props are validated at runtime via zod schemas in `src/schemas.ts`.
+
+## Setup
+
+```console
+npm ci
+```
+
+Fonts live in `public/` (`Vazirmatn-Regular.ttf`, `Vazirmatn-Bold.ttf`). Place the source clip as `public/video.mp4` (or pass another `videoSrc` that matches `^[\w.-]+\.mp4$`).
 
 ## Commands
 
-**Install Dependencies**
-
-```console
-npm i
-```
-
-**Start Preview**
+**Studio preview**
 
 ```console
 npm run dev
 ```
 
-**Render video**
+**Lint + typecheck**
 
 ```console
-npx remotion render
+npm run lint
 ```
 
-**Upgrade Remotion**
+**Unit tests** (`parseVtt`, `positionHelper`)
 
 ```console
-npx remotion upgrade
+npm test
 ```
 
-## Docs
+**Render Instagram Reel**
 
-Get started with Remotion by reading the [fundamentals page](https://www.remotion.dev/docs/the-fundamentals).
+```console
+npx remotion render InstagramReel out/reel.mp4 --props=props.example.json
+```
 
-## Help
+**Render YouTube long video**
 
-We provide help on our [Discord server](https://discord.gg/6VzzNDwUwV).
+```console
+npx remotion render YouTubeLongVideo out/youtube.mp4 --props=props.example.json
+```
 
-## Issues
+**Render a dynamic template**
 
-Found an issue with Remotion? [File an issue here](https://github.com/remotion-dev/remotion/issues/new).
+```console
+npx remotion render DynamicTemplate out/dynamic.mp4 --props=props.example.json
+```
 
-## License
+`DynamicTemplate` also requires a `templateConfig` string (JSON) describing layers. See `src/schemas.ts` (`templateConfigSchema`) for the contract.
 
-Note that for some entities a company license is needed. [Read the terms here](https://github.com/remotion-dev/remotion/blob/main/LICENSE.md).
+## Props (InstagramReel)
+
+| Prop | Type | Notes |
+| --- | --- | --- |
+| `videoSrc` | string | Filename inside `public/`, e.g. `video.mp4` |
+| `watermark` | string | Top-right badge |
+| `title` | string | Static title for the first ~3s |
+| `scrollingText` | string | Marquee after the title ends |
+| `subtitleContent` | string | WebVTT document |
+| `durationInSeconds` | number | Composition length (default 15) |
+
+## WebVTT
+
+Subtitles are parsed by `src/utils/parseVtt.ts`. Cue settings after `-->` are ignored; inline tags are stripped. Malformed cues cancel the render via `cancelRender`.
+
+## Notes
+
+- Video frames use `<OffthreadVideo>` (ffmpeg), not Chrome's `<Video>` decoder.
+- `OffthreadVideo` has no `loop` prop; composition duration is set to the clip length via `calculateMetadata`.
+- Invalid `DynamicTemplate` JSON / schema failures call `cancelRender` so a bad template never publishes as a successful black video.
